@@ -4,6 +4,8 @@
 
 **一個單檔 HTML 的即時戰略遊戲 · 37 個版本全開源**
 
+[▶ 線上玩最新版](https://sgxdvx123321-svg.github.io/endless-territory/versions/territory-v38.html) · [🗂 版本畫廊](https://sgxdvx123321-svg.github.io/endless-territory/) · [MIT](LICENSE)
+
 </div>
 
 ---
@@ -46,9 +48,12 @@
 
 | 方式 | 連結 |
 |---|---|
-| 最新版（v38）原始檔 | [`versions/territory-v38.html`](versions/territory-v38.html) |
-| 版本畫廊（本機開） | [`index.html`](index.html) |
-| 線上試玩（不用下載） | [htmlpreview 開啟 v38](https://htmlpreview.github.io/?https://github.com/sgxdvx123321-svg/endless-territory/blob/main/versions/territory-v38.html) |
+| ▶ **線上直接玩最新版 v38** | <https://sgxdvx123321-svg.github.io/endless-territory/versions/territory-v38.html> |
+| 🗂 **版本畫廊（線上）** | <https://sgxdvx123321-svg.github.io/endless-territory/> |
+| 原始檔 | [`versions/territory-v38.html`](versions/territory-v38.html) |
+| 下載全部版本 | `git clone` 見下方 |
+
+> 線上版用 GitHub Pages 部署，手機瀏覽器也能開；想離線玩就直接下載單檔。
 
 下載全部版本：
 
