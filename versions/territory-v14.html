@@ -1,0 +1,4175 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>無盡領土 · Endless Territory</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{
+    width:100%;height:100%;overflow:hidden;background:#050a10;color:#dceaf2;
+    font-family:"PingFang TC","Hiragino Sans TC","Microsoft JhengHei",system-ui,-apple-system,"Segoe UI",sans-serif;
+    -webkit-font-smoothing:antialiased;user-select:none;-webkit-user-select:none;touch-action:none;
+  }
+  canvas#cv{position:fixed;inset:0;display:block}
+
+  /* ───────── HUD ───────── */
+  #hud{position:fixed;inset:0;pointer-events:none;opacity:0;transition:opacity .45s ease;z-index:5}
+  #hud.on{opacity:1}
+  .hud-row{display:flex;justify-content:space-between;align-items:flex-start;padding:14px 16px;gap:12px}
+  .panel{
+    background:rgba(7,15,22,.66);border:1px solid rgba(110,170,190,.13);border-radius:14px;
+    backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+    box-shadow:0 10px 34px rgba(0,0,0,.42);
+  }
+  .era-panel{padding:10px 15px 12px;min-width:224px}
+  .era-line{display:flex;align-items:baseline;gap:7px}
+  .era-line .lbl{font-size:11px;letter-spacing:.16em;color:#6f8b9d}
+  .era-line .num{font-size:26px;font-weight:750;line-height:1;color:#eaf6fb;font-variant-numeric:tabular-nums}
+  .era-line .of{font-size:11px;color:#5d7688;margin-left:auto}
+  .bar{height:6px;border-radius:99px;background:rgba(255,255,255,.07);overflow:hidden;margin:9px 0 7px}
+  .bar i{display:block;height:100%;width:0%;border-radius:99px;
+    background:linear-gradient(90deg,#1fb89f,#2ee6c8);transition:width .18s linear;
+    box-shadow:0 0 12px rgba(46,230,200,.55)}
+  .era-sub{font-size:11.5px;color:#7f97a7;display:flex;gap:6px;align-items:center}
+  .era-sub b{color:#cfeee7;font-weight:650;font-variant-numeric:tabular-nums}
+  .mini-row{margin-top:7px;padding-top:7px;border-top:1px solid rgba(255,255,255,.06);
+    display:flex;justify-content:space-between;font-size:10.5px;color:#61798a;letter-spacing:.04em}
+  .mini-row b{color:#9fc3cf;font-weight:650;font-variant-numeric:tabular-nums}
+
+  /* v10 兵團清單 */
+  .mini-row.army-row{cursor:pointer;pointer-events:auto;transition:color .15s}
+  .mini-row.army-row:hover{color:#cfe3ec}
+  .mini-row .caret{font-style:normal;opacity:.55;margin-left:5px;display:inline-block;transition:transform .18s}
+  .mini-row.army-row.open .caret{transform:rotate(180deg)}
+  .army-list{display:none;margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,.06);
+    max-height:172px;overflow-y:auto;pointer-events:auto;overscroll-behavior:contain}
+  .army-list.open{display:block}
+  .army-item{display:flex;align-items:center;gap:6px;padding:4px 6px;border-radius:8px;cursor:pointer;
+    font-size:11px;color:#93aab9;transition:background .14s,color .14s}
+  .army-item:hover{background:rgba(255,255,255,.06);color:#d6e7ef}
+  .army-item.on{background:rgba(46,230,200,.14);color:#b6fff2}
+  .army-item .dot{width:7px;height:7px;border-radius:2px;flex:none;background:#2ee6c8}
+  .army-item .nm{flex:1;white-space:nowrap}
+  .army-item .men{font-variant-numeric:tabular-nums;font-weight:650;color:#cfe3ec}
+  .army-item .tag{font-size:9px;padding:1px 5px;border-radius:99px;
+    background:rgba(255,255,255,.07);color:#8ba3b2;flex:none}
+  .army-item.empty{cursor:default;justify-content:center;color:#5c7686}
+
+  .rivals{padding:8px;display:flex;flex-direction:column;gap:5px;min-width:214px}
+  .rival{display:flex;align-items:center;gap:8px;padding:4px 7px;border-radius:9px;transition:opacity .3s;flex-wrap:wrap}
+  .rival.dead{opacity:.28}
+  .rival .rmeta{width:100%;padding-left:17px;font-size:10px;color:#6f8b9d;
+    font-variant-numeric:tabular-nums;letter-spacing:.02em}
+  .rival .dot{width:9px;height:9px;border-radius:3px;flex:none;box-shadow:0 0 9px currentColor}
+  .rival .rname{font-size:11.5px;color:#c3d7e2;width:70px;flex:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rival .rbar{flex:1;height:4px;border-radius:99px;background:rgba(255,255,255,.07);overflow:hidden}
+  .rival .rbar i{display:block;height:100%;width:0%;border-radius:99px;transition:width .2s linear}
+  .rival .rpct{font-size:11px;color:#8ea6b5;width:34px;text-align:right;flex:none;font-variant-numeric:tabular-nums}
+
+  .hud-bottom{
+    position:absolute;left:0;right:0;bottom:0;display:flex;justify-content:center;align-items:center;
+    gap:16px;padding:0 16px 14px;font-size:11.5px;color:#6d8697
+  }
+  kbd{
+    display:inline-block;min-width:19px;padding:2px 5px;margin:0 1px;border-radius:5px;
+    background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.09);
+    font-family:inherit;font-size:10.5px;color:#a9c1cf;text-align:center
+  }
+  .agg-chip{padding:4px 11px;border-radius:99px;background:rgba(255,255,255,.045);
+    border:1px solid rgba(255,255,255,.07);color:#8ba3b2}
+  .agg-chip b{color:#ffc142;font-weight:700;margin-left:3px}
+  /* v14 外交 */
+  .agg-chip.clickable{pointer-events:auto;cursor:pointer;transition:background .15s,color .15s}
+  .agg-chip.clickable:hover{background:rgba(46,230,200,.14);color:#b6fff2}
+  .dip-row{display:flex;align-items:center;gap:8px;margin:7px 0;padding:6px 8px;border-radius:10px;
+    background:rgba(255,255,255,.035);text-align:left}
+  .dip-row .dot{width:9px;height:9px;border-radius:3px;flex:none;box-shadow:0 0 9px currentColor}
+  .dip-row .nm{flex:1;font-size:12px;color:#c3d7e2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dip-row .st{font-size:10.5px;color:#5fd6b0;flex:none}
+  .dip-row .st.war{color:#ff8b8b}
+  .ghost.mini{width:auto;padding:5px 12px;margin:0;font-size:11.5px;border-radius:9px;flex:none}
+  .ghost.mini[disabled]{opacity:.35;cursor:not-allowed}
+  .surge-chip{display:flex;align-items:center;gap:6px}
+  .surge-bar{display:inline-block;width:52px;height:4px;border-radius:9px;
+    background:rgba(255,255,255,.08);overflow:hidden;vertical-align:middle}
+  .surge-bar b{display:block;height:100%;width:100%;border-radius:9px;
+    background:linear-gradient(90deg,#1fb9a4,#6bffe4);transition:width .08s linear}
+  .surge-chip.hot .surge-bar b{background:linear-gradient(90deg,#e8fffb,#7bffe8);
+    box-shadow:0 0 8px rgba(110,255,230,.85)}
+
+  /* ───────── Overlay ───────── */
+  #overlay{
+    position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;padding:24px;
+    background:radial-gradient(ellipse at 50% 38%,rgba(10,26,38,.72),rgba(3,7,11,.93) 70%);
+    backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);
+    opacity:0;pointer-events:none;transition:opacity .32s ease;
+  }
+  #overlay.on{opacity:1;pointer-events:auto}
+  .card{
+    width:min(476px,100%);background:rgba(8,17,25,.86);border:1px solid rgba(110,180,200,.16);
+    border-radius:22px;padding:26px 28px 22px;text-align:center;
+    box-shadow:0 30px 90px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.05);
+    animation:pop .34s cubic-bezier(.2,1.2,.4,1) both;
+    /* 設定項目變多之後，小視窗會超出畫面 → 卡片自己捲動 */
+    max-height:calc(100vh - 48px);overflow-y:auto;overscroll-behavior:contain;
+    scrollbar-width:thin;scrollbar-color:rgba(120,180,200,.35) transparent;
+  }
+  .card::-webkit-scrollbar{width:6px}
+  .card::-webkit-scrollbar-thumb{background:rgba(120,180,200,.28);border-radius:99px}
+  @keyframes pop{from{transform:translateY(14px) scale(.97);opacity:0}to{transform:none;opacity:1}}
+  .eyebrow{font-size:10px;letter-spacing:.34em;color:#3f6473;margin-bottom:10px;font-weight:600}
+  h1{font-size:34px;font-weight:800;letter-spacing:.03em;margin-bottom:12px;
+    background:linear-gradient(180deg,#f2fffc,#7fe8d8);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .card p.lead{font-size:13.5px;line-height:1.78;color:#93aab9;margin-bottom:20px}
+  .card p.lead b{color:#d8f4ee;font-weight:650}
+  .agg-title{font-size:11.5px;color:#7e97a8;letter-spacing:.08em;margin-bottom:9px}
+  .seg{display:flex;gap:6px;justify-content:center;margin-bottom:9px}
+  .capnum{display:flex;gap:8px;align-items:center;justify-content:center;margin-bottom:12px}
+  .capnum input{width:78px;padding:9px 10px;border-radius:10px;border:1px solid rgba(120,220,210,.26);
+    background:rgba(10,26,32,.7);color:#e6fffb;font:600 15px ui-sans-serif,system-ui,sans-serif;
+    text-align:center;outline:none}
+  .capnum input:focus{border-color:rgba(70,235,208,.7);box-shadow:0 0 0 3px rgba(70,235,208,.14)}
+  .capnum span{font-size:11.5px;color:#7e97a8}
+  .seg button{
+    flex:1;padding:9px 0;border-radius:10px;cursor:pointer;font-family:inherit;font-size:13px;
+    background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.08);color:#8ba3b2;
+    transition:all .16s ease;
+  }
+  .seg button:hover{background:rgba(255,255,255,.08);color:#cfe3ec}
+  .seg button.on{
+    background:rgba(46,230,200,.14);border-color:rgba(46,230,200,.5);color:#b6fff2;
+    box-shadow:0 0 18px rgba(46,230,200,.16),inset 0 0 12px rgba(46,230,200,.08)
+  }
+  .agg-note{font-size:10.5px;color:#5c7686;margin-bottom:20px;line-height:1.6}
+  .primary{
+    width:100%;padding:13px 0;border-radius:12px;cursor:pointer;font-family:inherit;
+    font-size:15px;font-weight:700;letter-spacing:.06em;color:#04241f;
+    background:linear-gradient(180deg,#4df0d6,#1fc9ae);border:none;
+    box-shadow:0 8px 26px rgba(46,230,200,.28);transition:transform .12s ease,box-shadow .16s ease;
+  }
+  .primary:hover{transform:translateY(-1px);box-shadow:0 12px 34px rgba(46,230,200,.4)}
+  .primary:active{transform:translateY(0) scale(.99)}
+  .ghost{
+    width:100%;padding:11px 0;margin-top:9px;border-radius:12px;cursor:pointer;font-family:inherit;
+    font-size:13px;color:#9db4c2;background:transparent;border:1px solid rgba(255,255,255,.1);
+    transition:all .16s ease;
+  }
+  .ghost:hover{background:rgba(255,255,255,.05);color:#d6e7ef}
+  .foot{margin-top:16px;font-size:10.5px;color:#4f6674;letter-spacing:.04em}
+  .stat-row{display:flex;gap:10px;margin:18px 0 22px}
+  .stat{flex:1;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.06);
+    border-radius:12px;padding:11px 8px}
+  .stat .k{font-size:10px;color:#6a8496;letter-spacing:.1em;margin-bottom:5px}
+  .stat .v{font-size:19px;font-weight:750;color:#e6f5fa;font-variant-numeric:tabular-nums}
+  .stat .v small{font-size:11px;font-weight:500;color:#7e97a8;margin-left:2px}
+
+  #toast{
+    position:fixed;left:50%;bottom:76px;transform:translate(-50%,10px);z-index:15;
+    padding:9px 18px;border-radius:99px;background:rgba(8,18,26,.9);
+    border:1px solid rgba(120,180,200,.16);font-size:12.5px;color:#cfe6ef;
+    opacity:0;pointer-events:none;transition:all .3s ease;white-space:nowrap;
+    box-shadow:0 10px 30px rgba(0,0,0,.5);
+  }
+  #toast.on{opacity:1;transform:translate(-50%,0)}
+
+  @media (max-width:640px){
+    .card{padding:24px 20px 18px}
+    h1{font-size:27px}
+    .rivals{min-width:0}
+    .hud-bottom{display:none}
+  }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+
+<div id="hud">
+  <div class="hud-row">
+    <div class="panel era-panel">
+      <div class="era-line"><span class="lbl">區塊</span><span class="num" id="zoneNum">1</span><span class="of" id="zoneSize">28 × 19</span></div>
+      <div class="bar"><i id="ownBar"></i></div>
+      <div class="era-sub"><b id="ownPct">0%</b> 已佔領<span style="opacity:.4">·</span>剩 <b id="leftCells">0</b> 格</div>
+      <div class="mini-row"><span>已開放 <b id="zoneCount">1</b> 塊</span><span>縮放 <b id="zoomPct">100%</b></span></div>
+      <div class="mini-row"><span>主城 <b id="capCount">0 / 0</b></span><span>地區 <b id="distCount">0</b></span></div>
+      <div class="mini-row"><span>人口 <b id="popCount">0</b></span><span>兵力 <b id="menCount">0</b></span></div>
+      <div class="mini-row army-row" id="armyToggle">
+        <span>兵團 <b id="armyCount">0</b></span><span>守軍 <b id="garCount">0</b><i class="caret">▾</i></span>
+      </div>
+      <div class="army-list" id="armyRows"></div>
+    </div>
+    <div class="panel rivals" id="rivals"></div>
+  </div>
+  <div class="hud-bottom">
+    <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 移動</div>
+    <div class="surge-chip"><kbd style="min-width:56px">SPACE</kbd> 衝鋒 <i class="surge-bar"><b id="surgeFill"></b></i></div>
+    <div><kbd>Q</kbd> 切換兵團</div>
+    <div><kbd>O</kbd> 集結</div>
+    <div><kbd>P</kbd> 歸位</div>
+    <div class="agg-chip" id="draftChip">M 征召 <b id="draftCd">就緒</b></div>
+    <div class="agg-chip clickable" id="dipChip" style="display:none">外交</div>
+    <div><kbd>滾輪</kbd> 縮放</div>
+    <div class="agg-chip" id="warChip" style="display:none">戰役模式</div>
+    <div class="agg-chip">AI 對你 <b id="aggLabel">中</b></div>
+    <div class="agg-chip">敵勢 <b id="powMul">×1.0</b></div>
+    <div><kbd>ESC</kbd> 暫停</div>
+  </div>
+</div>
+
+<div id="overlay"></div>
+<div id="toast"></div>
+
+<script>
+(function () {
+'use strict';
+
+/* ═══════════════════════════ 常數 ═══════════════════════════ */
+const TAU = Math.PI * 2;
+const HP_MAX = 1.5;
+const DMG = 11.5;
+const NEUTRAL = -1;
+
+/* 世界由「區塊」拼成：每塊 28×19 格，相鄰的區塊之間靠十字走廊連通 */
+const ZW = 24, ZH = 16;
+const WCOL = 10, WROW = 8;
+const WORLD_W = ZW * WCOL;
+const WORLD_H = ZH * WROW;
+const LAT_X0 = 0, LAT_Y0 = 0;   // 區塊格線直接鋪滿整個世界
+let WORLD_SEED = 20261112;
+let worldLand = null;       // 整張世界的地形（只留最大陸塊）
+let zoneLandCnt = null;     // 每個格子有多少陸地
+let zoneOpenGrid = null;    // 每個格子是否已開放
+let LAKE_PTS = [];          // 內陸湖中心，開局優先在湖邊
+
+const CFG = {
+  landRatio: 0.58,
+  rimWarp: 0.34,
+  playerSpeed: 7.4,
+  aiSpeedBase: 5.55,
+  aiSpeedPerZone: 0.10,
+  aiSpeedMax: 7.05,
+  maxRivals: 4,
+  collapseAt: 6,
+  surgeDur: 2.2,
+  surgeCd: 7.5,
+  surgeSpeed: 1.34,
+  surgeDmg: 2.6,
+  warmup: 5.5,
+  captureLock: 0.40,
+  suffocateTime: 0.55,
+  zoneOpenDelay: 1.15,
+  camFollow: 6.5,
+  siegeTime: 5.0,
+  siegeAiTime: 8.0,
+  siegeRadius: 1.75,
+  siegeDecay: 1.6,
+  surrenderTime: 1.2,
+  prefill: 0.88,
+  enterGrace: 8.0,
+
+  /* ───── v8：敵國中後期強化 ───── */
+  /* v8.1 回調：權數已全部回到 v7 的水準，只在守城與集結上加強 */
+  zoneMulCap: 6,         // 兵團人數倍率上限（＝v7）
+  lateK: 0,              // 0 = 不做額外加速（＝v7）；要調強可以從 0.02 ≈ 每塊 +2% 開始
+  enemyMenBase: 200,     // 敵方野戰兵團基礎人數（＝v7）
+  enemyMenCap: 2000,     // 單支上限（＝v7）
+  enemySpawnBase: 500,   // 人口成軍基礎（＝v7）
+  enemySpawnCap: 2500,   // 人口成軍上限（＝v7）
+  enemyArmyPerZone: 0.5, // 每座敵城兵團數 = 區塊數 × 此值（＝v7）
+  enemyArmyCap: 10,      // 每座敵城兵團數上限（＝v7）
+  garrisonBase: 300,     // 主城守軍基礎（原 100）
+  garrisonCap: 4800,     // 主城守軍上限（原 1200）
+  garrisonRange: 18,     // 守軍攔截半徑（原 11）
+  focusRadius: 8,        // 多兵團集結判定半徑
+  focusStep: 0.04,       // 每多一支友軍 +4% 傷害（v8.1 從 28% 下調）
+  focusCap: 3.2,         // 集結加成上限
+  siegeDefSlow: 1400,    // 守軍 1400 人 → 圍城速度砍半
+  siegeDefFloor: 0.28,   // 圍城速度最低不會低於此倍率
+  capFireRate: 0.012,    // 城防傷害：每秒消耗圍城者兵力的百分比（× 守軍係數）
+  capFirePow: 900,       // 守軍 900 人 → 係數 1.0
+  capFireMax: 2.4,       // 係數上限
+  capBuyT: 5,            // 被圍時每 5 秒從人口抽一次兵
+  capBuyMen: 500,        // 每次最多抽 500 人（v9 從 800 下調）
+  capBuyMax: 1,          // 每座城只能抽一次（v9 從「每次圍城 4 次」下調）
+  capBuyGuard: 2800,     // 守軍已經這麼多就不再加
+  lateGate: 10,          // 敵軍的守城／集結優勢，奪取這麼多塊之後才生效
+  rallyDur: 9,           // v10：按 O 集結後，友軍往你身上靠這麼多秒
+  draftPct: 0.01,        // v11：緊急征召抽 1% 人口
+  draftCd: 30            // v11：征召冷卻 30 秒
+};
+
+const COLORS = [
+  { name: '你',     r: 46,  g: 230, b: 200, css: '#2ee6c8' },
+  { name: '珊瑚紅', r: 255, g: 92,  b: 108, css: '#ff5c6c' },
+  { name: '琥珀',   r: 255, g: 193, b: 66,  css: '#ffc142' },
+  { name: '紫羅蘭', r: 139, g: 92,  b: 246, css: '#8b5cf6' },
+  { name: '靛藍',   r: 59,  g: 130, b: 246, css: '#3b82f6' }
+];
+
+/* ═══════════════════════════ 地質 ═══════════════════════════ */
+/* 四種地質：影響移動速度、圍城速度、人口成長。
+   用兩張低頻噪聲（氣溫 / 濕度）決定，所以會連成一大片、跨好幾個區塊。 */
+const BIOMES = [
+  { id: 0, name: '草原', css: '#7fa86a', move: 1.00, siege: 1.00, grow: 1.00,
+    low: [78, 108, 66],  mid: [104, 140, 84],  hi: [150, 178, 110] },
+  { id: 1, name: '雪原', css: '#cfe3ef', move: 0.86, siege: 1.25, grow: 0.90,
+    low: [118, 142, 160], mid: [154, 178, 196], hi: [204, 222, 234] },
+  { id: 2, name: '沙漠', css: '#d8c08a', move: 0.92, siege: 0.85, grow: 0.85,
+    low: [158, 136, 92], mid: [188, 166, 118], hi: [220, 200, 154] },
+  { id: 3, name: '雨林', css: '#3f7a56', move: 0.88, siege: 0.90, grow: 1.05,
+    low: [38, 84, 60],   mid: [58, 116, 80],   hi: [92, 150, 104] }
+];
+let worldBiome = null;
+
+function biomeAt(wx, wy) {
+  if (!worldBiome) return 0;
+  const x = wx | 0, y = wy | 0;
+  if (x < 0 || y < 0 || x >= WORLD_W || y >= WORLD_H) return 0;
+  return worldBiome[y * WORLD_W + x];
+}
+function biomeOf(wx, wy) { return BIOMES[biomeAt(wx, wy)]; }
+
+function buildBiomes() {
+  const n = WORLD_W * WORLD_H;
+  worldBiome = new Uint8Array(n);
+  const cnt = [0, 0, 0, 0];
+  for (let y = 0; y < WORLD_H; y++) {
+    for (let x = 0; x < WORLD_W; x++) {
+      const temp = fbm(x * 0.021 + 31, y * 0.021 + 7, WORLD_SEED + 101, 3);
+      const moist = fbm(x * 0.024 + 5, y * 0.024 + 41, WORLD_SEED + 211, 3);
+      let bi = 0;
+      if (temp < 0.42) bi = 1;                       // 冷 → 雪原
+      else if (temp > 0.60 && moist < 0.47) bi = 2;  // 熱乾 → 沙漠
+      else if (moist > 0.55) bi = 3;                 // 濕 → 雨林
+      worldBiome[y * WORLD_W + x] = bi;
+      if (worldLand && worldLand[y * WORLD_W + x]) cnt[bi]++;
+    }
+  }
+  /* 保險：整張大陸至少要有兩種地質，不然整局都同一種長相 */
+  let kinds = 0;
+  for (let i = 0; i < 4; i++) if (cnt[i] > WORLD_W * WORLD_H * 0.02) kinds++;
+  if (kinds < 2) {
+    const alt = (cnt[0] >= cnt[1]) ? 2 : 3;
+    for (let y = 0; y < WORLD_H; y++) {
+      for (let x = 0; x < WORLD_W; x++) {
+        if (hash2i(x, y, 91) < 0.45) worldBiome[y * WORLD_W + x] = alt;
+      }
+    }
+  }
+}
+
+/* 派系名字：前綴 + 中間 + 政體，每次開局都不同 */
+const NAME_HEAD = ['赤', '焰', '霜', '鐵', '翡翠', '琥珀', '蒼', '曜', '玄', '金',
+                   '銀', '碧', '朱', '夜', '晨', '灰', '墨', '青', '白', '緋'];
+const NAME_MID = ['月', '山', '河', '星', '嶺', '川', '海', '林', '谷', '原',
+                  '風', '雨', '雪', '焰', '沙', '岩', '霧', '霜'];
+const NAME_TAIL = ['王國', '帝國', '第一帝國', '公國', '共和國', '聯邦', '汗國',
+                   '大公國', '城邦', '同盟', '王朝', '霸權'];
+const USED_NAMES = new Set();
+function makeFactionName() {
+  for (let i = 0; i < 90; i++) {
+    const a = NAME_HEAD[(Math.random() * NAME_HEAD.length) | 0];
+    const b = Math.random() < 0.55 ? NAME_MID[(Math.random() * NAME_MID.length) | 0] : '';
+    const c = NAME_TAIL[(Math.random() * NAME_TAIL.length) | 0];
+    const nm = a + b + c;
+    if (!USED_NAMES.has(nm)) { USED_NAMES.add(nm); return nm; }
+  }
+  return '無名帝國';
+}
+
+const AGGRO = { weak: 0.22, mid: 0.80, strong: 2.15 };
+const AGGRO_LABEL = { weak: '弱', mid: '中', strong: '強' };
+
+/* ═══════════════════════════ 小工具 ═══════════════════════════ */
+const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+const lerp  = (a, b, t) => a + (b - a) * t;
+
+function hash2i(x, y, s) {
+  let h = Math.imul(x | 0, 374761393) ^ Math.imul(y | 0, 668265263) ^ Math.imul(s | 0, 144665);
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+function vnoise(x, y, s) {
+  const xi = Math.floor(x), yi = Math.floor(y);
+  const fx = x - xi, fy = y - yi;
+  const ux = fx * fx * (3 - 2 * fx), uy = fy * fy * (3 - 2 * fy);
+  const a = hash2i(xi, yi, s),     b = hash2i(xi + 1, yi, s);
+  const c = hash2i(xi, yi + 1, s), d = hash2i(xi + 1, yi + 1, s);
+  return lerp(lerp(a, b, ux), lerp(c, d, ux), uy);
+}
+function fbm(x, y, s, oct) {
+  let amp = 1, freq = 1, sum = 0, norm = 0;
+  for (let i = 0; i < oct; i++) {
+    sum += amp * vnoise(x * freq, y * freq, s + i * 37);
+    norm += amp;
+    amp *= 0.5;
+    freq *= 2.07;
+  }
+  return sum / norm;
+}
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function packRGBA(r, g, b, a) {
+  return ((a << 24) | (b << 16) | (g << 8) | r) >>> 0;
+}
+
+/* ═══════════════════════════ 世界棋盤 ═══════════════════════════ */
+class Board {
+  constructor(w, h) {
+    this.w = w;
+    this.h = h;
+    this.n = w * h;
+    this.terrain = new Uint8Array(this.n);
+    this.owner = new Int8Array(this.n).fill(NEUTRAL);
+    this.hp = new Float32Array(this.n);
+    this.stamp = new Int32Array(this.n);
+    this.stampId = 0;
+    this.lock = new Float32Array(this.n);
+    this.time = 0;
+    this.cnt = new Int32Array(8);
+    this.landCount = 0;
+    this.dirty = true;
+    this.boxX0 = w; this.boxY0 = h; this.boxX1 = 0; this.boxY1 = 0;
+    this.boxDirty = true;
+  }
+  isLand(x, y) {
+    if (x < 0 || y < 0 || x >= this.w || y >= this.h) return false;
+    return this.terrain[y * this.w + x] === 1;
+  }
+  idx(x, y) { return y * this.w + x; }
+  setOwner(i, o) {
+    const p = this.owner[i];
+    if (p === o) return;
+    this.cnt[p + 1]--;
+    this.cnt[o + 1]++;
+    this.owner[i] = o;
+    this.dirty = true;
+  }
+  growBox(x, y) {
+    if (x < this.boxX0) { this.boxX0 = x; this.boxDirty = true; }
+    if (y < this.boxY0) { this.boxY0 = y; this.boxDirty = true; }
+    if (x > this.boxX1) { this.boxX1 = x; this.boxDirty = true; }
+    if (y > this.boxY1) { this.boxY1 = y; this.boxDirty = true; }
+  }
+}
+
+/* ═══════════ 世界地形 ═══════════
+   整張世界一次生成，區塊只是「揭露範圍」。
+   這樣相鄰區塊的海岸線會自然接起來，不會每塊都是一座被海包住的孤島。 */
+function smoothstep(a, b, x) {
+  const t = clamp((x - a) / (b - a), 0, 1);
+  return t * t * (3 - 2 * t);
+}
+
+/* 大陸遮罩：世界中心幾乎一定是陸地，海只出現在最外圍。
+   內陸再用低頻雜訊長出高地/低地，讓同一塊大陸有顏色層次。 */
+function worldScore(wx, wy) {
+  const nx = (wx - WORLD_W * 0.5) / (WORLD_W * 0.52);
+  const ny = (wy - WORLD_H * 0.5) / (WORLD_H * 0.56);
+  const rad = Math.sqrt(nx * nx + ny * ny);
+  const warp = (fbm(wx * 0.030 + 3.7, wy * 0.030 + 9.1, WORLD_SEED + 17, 3) - 0.5) * CFG.rimWarp;
+  const mask = 1 - smoothstep(0.58, 1.02, rad + warp);
+  let h = fbm(wx * 0.075 + 11.0, wy * 0.075 + 5.0, WORLD_SEED, 4) * 0.55
+        + fbm(wx * 0.19 + 2.0, wy * 0.19 + 13.0, WORLD_SEED + 31, 3) * 0.20
+        + (fbm(wx * 0.045 + 7.0, wy * 0.045 + 21.0, WORLD_SEED + 61, 3) - 0.5) * 0.26;
+  h = clamp((h - 0.46) * 2.2 + 0.5, 0, 1);      // 拉開對比，內陸才長得出海灣
+  return h * 0.58 + mask * 0.42;
+}
+
+/* 只保留最大陸塊：其他零碎小島一律沉回海裡，不會出現走不到的島 */
+function largestComponent(land) {
+  const n = land.length;
+  const comp = new Int32Array(n).fill(-1);
+  const q = new Int32Array(n);
+  let best = -1, bestSize = 0, id = 0;
+  for (let i = 0; i < n; i++) {
+    if (!land[i] || comp[i] >= 0) continue;
+    let qh = 0, qt = 0, size = 0;
+    q[qt++] = i; comp[i] = id;
+    while (qh < qt) {
+      const k = q[qh++]; size++;
+      const x = k % WORLD_W, y = (k / WORLD_W) | 0;
+      if (x > 0) { const j = k - 1; if (land[j] && comp[j] < 0) { comp[j] = id; q[qt++] = j; } }
+      if (x < WORLD_W - 1) { const j = k + 1; if (land[j] && comp[j] < 0) { comp[j] = id; q[qt++] = j; } }
+      if (y > 0) { const j = k - WORLD_W; if (land[j] && comp[j] < 0) { comp[j] = id; q[qt++] = j; } }
+      if (y < WORLD_H - 1) { const j = k + WORLD_W; if (land[j] && comp[j] < 0) { comp[j] = id; q[qt++] = j; } }
+    }
+    if (size > bestSize) { bestSize = size; best = id; }
+    id++;
+  }
+  return { comp: comp, id: best, size: bestSize };
+}
+
+function keepLargest(land) {
+  const r = largestComponent(land);
+  for (let i = 0; i < land.length; i++) if (land[i] && r.comp[i] !== r.id) land[i] = 0;
+  return r.size;
+}
+
+/* 內陸湖：1~2 個，位置與形狀每次不同；挖完檢查大陸有沒有被切成兩半 */
+function carveLakes(land, size0) {
+  LAKE_PTS = [];
+  const count = hash2i(WORLD_SEED, 3, 29) < 0.55 ? 2 : 1;
+  let size = size0;
+  for (let li = 0; li < count; li++) {
+    for (let attempt = 0; attempt < 7; attempt++) {
+      const cx = WORLD_W * (0.30 + hash2i(WORLD_SEED, li * 7 + attempt * 3 + 1, 11) * 0.40);
+      const cy = WORLD_H * (0.28 + hash2i(WORLD_SEED, li * 7 + attempt * 3 + 2, 13) * 0.44);
+      const rx = 5 + hash2i(WORLD_SEED, li * 7 + attempt * 3 + 3, 17) * 6;
+      const ry = 3.5 + hash2i(WORLD_SEED, li * 7 + attempt * 3 + 4, 19) * 4;
+      const nx = (cx - WORLD_W * 0.5) / (WORLD_W * 0.52);
+      const ny = (cy - WORLD_H * 0.5) / (WORLD_H * 0.56);
+      if (Math.sqrt(nx * nx + ny * ny) > 0.55) continue;   // 太靠邊就不挖，避免挖穿海岸
+      const back = Uint8Array.from(land);
+      let carved = 0;
+      for (let y = Math.floor(cy - ry - 2); y <= Math.ceil(cy + ry + 2); y++) {
+        for (let x = Math.floor(cx - rx - 2); x <= Math.ceil(cx + rx + 2); x++) {
+          if (x < 1 || y < 1 || x >= WORLD_W - 1 || y >= WORLD_H - 1) continue;
+          const dx = (x - cx) / rx, dy = (y - cy) / ry;
+          const wob = (fbm(x * 0.25 + li * 31, y * 0.25 + li * 17, WORLD_SEED + 71, 2) - 0.5) * 0.55;
+          if (dx * dx + dy * dy + wob > 1) continue;
+          const i = y * WORLD_W + x;
+          if (land[i]) carved++;
+          land[i] = 0;
+        }
+      }
+      if (!carved) { land.set(back); continue; }
+      const after = keepLargest(land);
+      if (after < size * 0.90) { land.set(back); continue; }   // 切斷大陸就換個位置重挖
+      size = after;
+      LAKE_PTS.push({ x: cx, y: cy, r: Math.max(rx, ry) });
+      break;
+    }
+  }
+  return size;
+}
+
+/* 接縫補強：只在「本來就有陸地」的接縫上把它加寬成 5~6 格，
+   海面上的接縫一律不動，免得海裡長出一格一格的人工堤防 */
+function sealSeam(land, sx, sy, vertical) {
+  const len = vertical ? ZH : ZW;
+  const need = 6;
+  const at = function (k) { return vertical ? (sy + k) * WORLD_W + sx : sy * WORLD_W + (sx + k); };
+  let cnt = 0, first = -1;
+  for (let k = 0; k < len; k++) if (land[at(k)]) { cnt++; if (first < 0) first = k; }
+  if (cnt === 0 || cnt >= need) return;
+  const mid = first >= 0 ? first : (len >> 1);
+  for (let d = -1; d <= 3; d++) {
+    const k = clamp(mid + d, 1, len - 2);
+    land[at(k)] = 1;
+    if (vertical) { if (at(k) > 0) land[at(k) - 1] = 1; if (at(k) + 1 < land.length) land[at(k) + 1] = 1; }
+    else { if (at(k) - WORLD_W >= 0) land[at(k) - WORLD_W] = 1; if (at(k) + WORLD_W < land.length) land[at(k) + WORLD_W] = 1; }
+  }
+}
+
+function buildWorld() {
+  const n = WORLD_W * WORLD_H;
+  const score = new Float32Array(n);
+  for (let wy = 0; wy < WORLD_H; wy++) {
+    for (let wx = 0; wx < WORLD_W; wx++) score[wy * WORLD_W + wx] = worldScore(wx, wy);
+  }
+  const sorted = Float32Array.from(score).sort();
+  const thr = sorted[Math.floor(n * (1 - CFG.landRatio))];
+  const land = new Uint8Array(n);
+  for (let i = 0; i < n; i++) land[i] = score[i] > thr ? 1 : 0;
+
+  let size = keepLargest(land);
+  size = carveLakes(land, size);
+
+  for (let gy = 0; gy < WROW; gy++) {
+    for (let gx = 0; gx < WCOL; gx++) {
+      if (gx + 1 < WCOL) sealSeam(land, (gx + 1) * ZW, gy * ZH, true);
+      if (gy + 1 < WROW) sealSeam(land, gx * ZW, (gy + 1) * ZH, false);
+    }
+  }
+  keepLargest(land);
+
+  worldLand = land;
+  zoneLandCnt = new Int32Array(WCOL * WROW);
+  for (let gy = 0; gy < WROW; gy++) {
+    for (let gx = 0; gx < WCOL; gx++) {
+      let c = 0;
+      for (let y = 0; y < ZH; y++) {
+        for (let x = 0; x < ZW; x++) if (land[(gy * ZH + y) * WORLD_W + (gx * ZW + x)]) c++;
+      }
+      zoneLandCnt[gy * WCOL + gx] = c;
+    }
+  }
+  buildBiomes();
+  zoneOpenGrid = new Uint8Array(WCOL * WROW);
+  paintShadow();
+}
+
+function paintShadow() {
+  if (!shadowCv) {
+    shadowCv = document.createElement('canvas');
+    shadowCv.width = WORLD_W;
+    shadowCv.height = WORLD_H;
+  }
+  const c = shadowCv.getContext('2d');
+  c.clearRect(0, 0, WORLD_W, WORLD_H);
+  const n = WORLD_W * WORLD_H;
+  const img = c.createImageData(WORLD_W, WORLD_H);
+  const u32 = new Uint32Array(img.data.buffer);
+
+  /* 距離場：從已開放的區塊往外擴散，越遠越暗。
+     這樣「已探索 / 未探索」的邊界是漸層，不會是一刀切的直線。 */
+  const dist = new Int16Array(n).fill(99);
+  const q = new Int32Array(n);
+  let qh = 0, qt = 0;
+  for (let gy = 0; gy < WROW; gy++) {
+    for (let gx = 0; gx < WCOL; gx++) {
+      if (!zoneOpenGrid[gy * WCOL + gx]) continue;
+      for (let y = 0; y < ZH; y++) {
+        for (let x = 0; x < ZW; x++) {
+          const i = (gy * ZH + y) * WORLD_W + (gx * ZW + x);
+          if (dist[i] === 0) continue;
+          dist[i] = 0; q[qt++] = i;
+        }
+      }
+    }
+  }
+  while (qh < qt) {
+    const i = q[qh++];
+    const d = dist[i] + 1;
+    if (d > 12) continue;
+    const x = i % WORLD_W, y = (i / WORLD_W) | 0;
+    if (x > 0 && dist[i - 1] > d) { dist[i - 1] = d; q[qt++] = i - 1; }
+    if (x < WORLD_W - 1 && dist[i + 1] > d) { dist[i + 1] = d; q[qt++] = i + 1; }
+    if (y > 0 && dist[i - WORLD_W] > d) { dist[i - WORLD_W] = d; q[qt++] = i - WORLD_W; }
+    if (y < WORLD_H - 1 && dist[i + WORLD_W] > d) { dist[i + WORLD_W] = d; q[qt++] = i + WORLD_W; }
+  }
+
+  for (let i = 0; i < n; i++) {
+    if (!worldLand[i]) continue;
+    const d = dist[i];
+    if (d <= 1) continue;
+    const a = Math.min(146, (d - 1) * 15);
+    if (a > 3) u32[i] = packRGBA(14, 32, 42, a);
+  }
+  c.putImageData(img, 0, 0);
+}
+
+/* 這格是「已經看得到的陸地」嗎：未開放的區塊要當成海，邊界才會長出沙灘 */
+function knownLand(wx, wy) {
+  if (wx < 0 || wy < 0 || wx >= WORLD_W || wy >= WORLD_H) return false;
+  if (!worldLand[wy * WORLD_W + wx]) return false;
+  return zoneOpenGrid[((wy / ZH) | 0) * WCOL + ((wx / ZW) | 0)] === 1;
+}
+
+function zoneLandOf(gx, gy) {
+  if (gx < 0 || gy < 0 || gx >= WCOL || gy >= WROW) return 0;
+  return zoneLandCnt[gy * WCOL + gx];
+}
+
+/* 起始區塊：從世界中央附近挑陸地最多的那塊 */
+function pickStartZone() {
+  const cx = WCOL >> 1, cy = WROW >> 1;
+  let best = { gx: cx, gy: cy }, bestD = 1e9;
+  /* 優先在湖邊開局：第一眼就看得到水，不是一整片單調的實心陸地 */
+  for (const lp of LAKE_PTS) {
+    const gx = clamp(Math.floor(lp.x / ZW), 0, WCOL - 1);
+    const gy = clamp(Math.floor(lp.y / ZH), 0, WROW - 1);
+    if (zoneLandOf(gx, gy) >= 150) return { gx: gx, gy: gy };
+  }
+  for (let gy = 0; gy < WROW; gy++) {
+    for (let gx = 0; gx < WCOL; gx++) {
+      if (Math.max(Math.abs(gx - cx), Math.abs(gy - cy)) > 1) continue;
+      const l = zoneLandOf(gx, gy);
+      if (l < 150) continue;                       // 太小的不適合當起點
+      const d = Math.abs(l - 380);                 // 目標：約 380 格，節奏剛好
+      if (d < bestD) { bestD = d; best = { gx: gx, gy: gy }; }
+    }
+  }
+  return best;
+}
+
+/* ═══════════════════════════ 影像／畫布 ═══════════════════════════ */
+const canvas = document.getElementById('cv');
+const ctx = canvas.getContext('2d');
+let DPR = 1, CW = 0, CH = 0;
+
+const PACK_T = COLORS.map(c => packRGBA(c.r, c.g, c.b, 255));
+const PACKV = COLORS.map(function (c) {
+  const arr = new Array(48);
+  for (let k = 0; k < 48; k++) arr[k] = packRGBA(c.r, c.g, c.b, 146 + k);
+  return arr;
+});
+const OUTLINE = COLORS.map((c, i) => i === 0 ? 'rgba(120,240,220,.55)' : 'rgba(8,16,22,.5)');
+const GLOW = 'rgba(46,230,200,.16)';
+
+let terrainCv = null, terrainCtx = null;
+let shadowCv = null;      // 未開放區塊的遠處輪廓（淡淡透出來，避免邊界像刀切）
+let terrCv = null, terrCtx = null, terrImg = null, terrU32 = null;
+let coastPath = null, terrPaths = null;
+let terrDirty = true, lastOutline = 0;
+
+const cam = { x: 0, y: 0, cell: 30, camPan: 0, tx: 0, ty: 0 };
+
+/* ═══════════════════════════ 遊戲狀態 ═══════════════════════════ */
+const G = {
+  state: 'menu',
+  board: null,
+  zones: [],
+  player: null,
+  rivals: [],
+  t: 0,
+  zone: 1,
+  aggression: 'mid',
+  baseSeed: 20261112,
+  parts: [],
+  surge: { t: 0, cd: 0 },
+  draftCd: 0,       // v11：緊急征召的冷卻
+  draftPct: CFG.draftPct,   // v12：征召抽調比例（ESC 可調 1%~20%，這裡是預設值）
+  rallyMode: 'near',        // v13：O 集結的範圍 near=最近的幾支 / all=全國
+  rallyCount: 3,            // v13：near 模式要調動幾支
+  stage: 1,                 // v14：第幾片大陸（1 = 原本的，2+ = 統一帝國）
+  unified: false,           // v14：這片大陸是不是「一個完整的統一國家」
+  diplo: false,             // v14：外交功能是否已解鎖
+  wars: {},                 // v14：對各國是否交戰（owner → bool）
+  suffocate: 0,
+  openDelay: 0,
+  pending: false,
+  startTime: 0,
+  kills: 0,
+  caps: [],
+  capSig: '',
+  grace: 0,
+  armies: [],
+  armyCap: 6,       // 每個國家最多幾支兵團
+  buffOn: true,     // v9：敵軍優勢總開關（ESC 可切）
+  uidSeq: 0,        // v10：兵團的唯一編號（HUD 清單點選用）
+  rescueT: 0,
+  popT: 0,
+  popPaid: 0,
+  popPaidBy: {},
+  warMode: false
+};
+
+function newBoard() {
+  const b = new Board(WORLD_W, WORLD_H);
+  terrainCv = document.createElement('canvas');
+  terrainCv.width = WORLD_W;
+  terrainCv.height = WORLD_H;
+  terrainCtx = terrainCv.getContext('2d');
+  terrainCtx.clearRect(0, 0, WORLD_W, WORLD_H);
+
+  terrCv = document.createElement('canvas');
+  terrCv.width = WORLD_W;
+  terrCv.height = WORLD_H;
+  terrCtx = terrCv.getContext('2d');
+  terrImg = terrCtx.createImageData(WORLD_W, WORLD_H);
+  terrU32 = new Uint32Array(terrImg.data.buffer);
+
+  coastPath = new Path2D();
+  terrPaths = COLORS.map(() => new Path2D());
+  terrDirty = true;
+  return b;
+}
+
+/* ═══════════════════════════ 區塊 ═══════════════════════════ */
+function zoneRect(gx, gy) {
+  return { x0: LAT_X0 + gx * ZW, y0: LAT_Y0 + gy * ZH, w: ZW, h: ZH };
+}
+
+function zoneAt(gx, gy) {
+  for (const z of G.zones) if (z.gx === gx && z.gy === gy) return z;
+  return null;
+}
+
+/* 以起始區塊為圓心，一圈一圈往外開：先內圈、再外圈，
+   同一個圈裡按角度繞（順時針），而且一定要跟已開放的區塊接得到 */
+function seamPassable(sx, sy, vertical) {
+  const len = vertical ? ZH : ZW;
+  let pairs = 0;
+  for (let k = 0; k < len; k++) {
+    const wx = vertical ? sx : sx + k;
+    const wy = vertical ? sy + k : sy;
+    const a = worldLand[wy * WORLD_W + wx];
+    const bx = vertical ? wx - 1 : wx;
+    const by = vertical ? wy : wy - 1;
+    const b2 = (bx >= 0 && by >= 0 && bx < WORLD_W && by < WORLD_H) ? worldLand[by * WORLD_W + bx] : 0;
+    if (a && b2) pairs++;
+  }
+  return pairs;
+}
+
+function openNextZone() {
+  const home = G.home || { gx: WCOL >> 1, gy: WROW >> 1 };
+  const cand = [];
+  for (let gy = 0; gy < WROW; gy++) {
+    for (let gx = 0; gx < WCOL; gx++) {
+      if (zoneOpenGrid[gy * WCOL + gx]) continue;                 // 已開
+      if (zoneLandOf(gx, gy) < 120) continue;                     // 幾乎全是海，不開放
+      let passable = 0, nb = 0;
+      if (gx > 0 && zoneOpenGrid[gy * WCOL + gx - 1]) { nb++; passable += seamPassable(gx * ZW, gy * ZH, true); }
+      if (gx < WCOL - 1 && zoneOpenGrid[gy * WCOL + gx + 1]) { nb++; passable += seamPassable((gx + 1) * ZW, gy * ZH, true); }
+      if (gy > 0 && zoneOpenGrid[(gy - 1) * WCOL + gx]) { nb++; passable += seamPassable(gx * ZW, gy * ZH, false); }
+      if (gy < WROW - 1 && zoneOpenGrid[(gy + 1) * WCOL + gx]) { nb++; passable += seamPassable(gx * ZW, (gy + 1) * ZH, false); }
+      if (!nb || passable < 2) continue;                          // 接不到就不要開
+      const ring = Math.max(Math.abs(gx - home.gx), Math.abs(gy - home.gy));
+      const ang = Math.atan2(gy - home.gy, gx - home.gx);
+      cand.push({ gx: gx, gy: gy, ring: ring, ang: ang, nb: nb, passable: passable });
+    }
+  }
+  if (!cand.length) return false;
+  cand.sort(function (a, c) {
+    if (a.ring !== c.ring) return a.ring - c.ring;          // 先開內圈
+    if (a.ang !== c.ang) return a.ang - c.ang;              // 同一圈按角度繞
+    if (c.passable !== a.passable) return c.passable - a.passable;   // 接口寬的先開
+    return c.nb - a.nb;
+  });
+  openZone(cand[0].gx, cand[0].gy);
+  return true;
+}
+
+function localLand(t, lx, ly, r, b) {
+  if (lx >= 0 && ly >= 0 && lx < ZW && ly < ZH) return t[ly * ZW + lx] === 1;
+  return b.isLand(r.x0 + lx, r.y0 + ly);
+}
+
+function terrainColorAt(wx, wy) {
+  const n = clamp((fbm(wx * 0.13 + 17, wy * 0.13 + 9, WORLD_SEED + 5, 3) - 0.28) / 0.44, 0, 1);
+  const m = clamp((fbm(wx * 0.31 + 5, wy * 0.31 + 21, WORLD_SEED + 41, 2) - 0.34) / 0.4, 0, 1);
+  const P = BIOMES[biomeAt(wx, wy)];
+  let cr, cg, cb;
+  if (n < 0.45) {
+    const k = n / 0.45;
+    cr = lerp(P.low[0], P.mid[0], k);
+    cg = lerp(P.low[1], P.mid[1], k);
+    cb = lerp(P.low[2], P.mid[2], k);
+  } else {
+    const k = (n - 0.45) / 0.55;
+    cr = lerp(P.mid[0], P.hi[0], k);
+    cg = lerp(P.mid[1], P.hi[1], k);
+    cb = lerp(P.mid[2], P.hi[2], k);
+  }
+  cr = lerp(cr, cr * 0.82, m * 0.55);
+  cg = lerp(cg, cg * 0.92, m * 0.55);
+  cb = lerp(cb, cb * 0.78, m * 0.55);
+  let seaSides = 0;
+  if (!knownLand(wx - 1, wy)) seaSides++;
+  if (!knownLand(wx + 1, wy)) seaSides++;
+  if (!knownLand(wx, wy - 1)) seaSides++;
+  if (!knownLand(wx, wy + 1)) seaSides++;
+  if (seaSides > 0) {
+    const k = Math.min(1, seaSides / 3) * 0.55;
+    cr = lerp(cr, 226, k); cg = lerp(cg, 208, k); cb = lerp(cb, 162, k);
+  }
+  const shade = 0.97 + hash2i(wx, wy, 7) * 0.06;
+  return packRGBA(
+    clamp(cr * shade, 0, 255) | 0,
+    clamp(cg * shade, 0, 255) | 0,
+    clamp(cb * shade, 0, 255) | 0, 255);
+}
+
+/* 可達性保險：矩形揭露可能把新區塊裡的一小撮陸地切成孤島，玩家走不到就永遠清不完。
+   遇到這種情況，就從最近的已可達格鑿一條 2 格寬的陸橋過去（天然地峽的長相），
+   而不是把地刪掉 —— 刪掉會讓畫面出現莫名其妙的方塊空洞。 */
+function connectUnreachable(t, r) {
+  const b = G.board, W = b.w, H = b.h;
+  const openCell = function (i) {
+    const gx = ((i % W) / ZW) | 0, gy = (((i / W) | 0) / ZH) | 0;
+    return zoneOpenGrid[gy * WCOL + gx] === 1;
+  };
+  let sx = -1, sy = -1;
+  const u = controlledUnit() || armyOf(0)[0];
+  if (u) { sx = clamp(Math.floor(u.x), 0, W - 1); sy = clamp(Math.floor(u.y), 0, H - 1); }
+  else {
+    let bestD = 1e9;
+    for (let y = 0; y < ZH; y++) {
+      for (let x = 0; x < ZW; x++) {
+        if (!t[y * ZW + x]) continue;
+        const d = (x - ZW / 2) * (x - ZW / 2) + (y - ZH / 2) * (y - ZH / 2);
+        if (d < bestD) { bestD = d; sx = r.x0 + x; sy = r.y0 + y; }
+      }
+    }
+  }
+  if (sx < 0 || sy < 0 || !b.terrain[sy * W + sx]) return 0;
+  const startIdx = sy * W + sx;
+
+  const flood = function () {
+    const seen = new Uint8Array(W * H);
+    const q = new Int32Array(W * H);
+    let qh = 0, qt = 0;
+    seen[startIdx] = 1; q[qt++] = startIdx;
+    while (qh < qt) {
+      const i = q[qh++]; const x = i % W, y = (i / W) | 0;
+      if (x > 0)     { const j = i - 1; if (b.terrain[j] && !seen[j]) { seen[j] = 1; q[qt++] = j; } }
+      if (x < W - 1) { const j = i + 1; if (b.terrain[j] && !seen[j]) { seen[j] = 1; q[qt++] = j; } }
+      if (y > 0)     { const j = i - W; if (b.terrain[j] && !seen[j]) { seen[j] = 1; q[qt++] = j; } }
+      if (y < H - 1) { const j = i + W; if (b.terrain[j] && !seen[j]) { seen[j] = 1; q[qt++] = j; } }
+    }
+    return seen;
+  };
+
+  let bridges = 0;
+  for (let guard = 0; guard < 4; guard++) {
+    const seen = flood();
+    let bad = -1;
+    for (let y = 0; y < ZH && bad < 0; y++) {
+      for (let x = 0; x < ZW; x++) {
+        if (!t[y * ZW + x]) continue;
+        const wi = (r.y0 + y) * W + (r.x0 + x);
+        if (!seen[wi]) { bad = wi; break; }
+      }
+    }
+    if (bad < 0) break;
+
+    /* 只在「已開放」的範圍裡找路，避免把陸橋鑿到還沒開放的區塊上 */
+    const parent = new Int32Array(W * H).fill(-1);
+    const dist = new Int16Array(W * H).fill(-1);
+    const q = new Int32Array(W * H);
+    let qh = 0, qt = 0;
+    for (let i = 0; i < W * H; i++) if (seen[i]) { dist[i] = 0; q[qt++] = i; }
+    let hit = -1;
+    while (qh < qt && hit < 0) {
+      const i = q[qh++];
+      if (dist[i] >= 24) continue;
+      const x = i % W, y = (i / W) | 0;
+      const nb = [x > 0 ? i - 1 : -1, x < W - 1 ? i + 1 : -1, y > 0 ? i - W : -1, y < H - 1 ? i + W : -1];
+      for (const j of nb) {
+        if (j < 0 || dist[j] >= 0 || !openCell(j)) continue;
+        dist[j] = dist[i] + 1;
+        parent[j] = i;
+        q[qt++] = j;
+        if (j === bad) { hit = j; break; }
+      }
+    }
+
+    if (hit < 0) {
+      /* 真的接不到（被未開放區塊隔開）：把那一小撮沉回海裡，至少不會卡死 */
+      for (let y = 0; y < ZH; y++) {
+        for (let x = 0; x < ZW; x++) {
+          if (!t[y * ZW + x]) continue;
+          const wi = (r.y0 + y) * W + (r.x0 + x);
+          if (seen[wi]) continue;
+          t[y * ZW + x] = 0;
+          b.terrain[wi] = 0;
+        }
+      }
+      break;
+    }
+
+    /* 沿著找到的路把海改成陸，並加寬成 2 格，看起來像天然地峽 */
+    let cur = hit;
+    const path = [];
+    while (cur >= 0 && dist[cur] > 0) { path.push(cur); cur = parent[cur]; }
+    for (const i of path) {
+      const x = i % W, y = (i / W) | 0;
+      const cells = [i];
+      if (x < W - 1) cells.push(i + 1);
+      for (const j of cells) {
+        if (b.terrain[j]) continue;
+        const zx = (j % W) - r.x0, zy = ((j / W) | 0) - r.y0;
+        const inNew = zx >= 0 && zy >= 0 && zx < ZW && zy < ZH;
+        b.terrain[j] = 1;
+        if (inNew) {
+          t[zy * ZW + zx] = 1;          // 這一格會被繪製流程一起算進 land
+        } else {
+          const zg = zoneAt(((j % W) / ZW) | 0, (((j / W) | 0) / ZH) | 0);
+          if (!zg) { b.terrain[j] = 0; continue; }
+          worldLand[j] = 1;
+          b.landCount++;
+          b.cnt[0]++;
+          zg.land++;
+          repaintCell(j % W, (j / W) | 0);
+        }
+      }
+    }
+    bridges++;
+  }
+  return bridges;
+}
+
+function repaintCell(wx, wy) {
+  const img = terrainCtx.createImageData(1, 1);
+  new Uint32Array(img.data.buffer)[0] = terrainColorAt(wx, wy);
+  terrainCtx.putImageData(img, wx, wy);
+}
+
+function openZone(gx, gy, isHome) {
+  const b = G.board;
+  const r = zoneRect(gx, gy);
+  const seed = (G.baseSeed + G.zones.length * 7919) | 0;
+  /* 地形不再自己長，直接切世界地圖的一塊出來 */
+  const t = new Uint8Array(ZW * ZH);
+  for (let y = 0; y < ZH; y++) {
+    for (let x = 0; x < ZW; x++) t[y * ZW + x] = worldLand[(r.y0 + y) * WORLD_W + (r.x0 + x)];
+  }
+  zoneOpenGrid[gy * WCOL + gx] = 1;
+  /* 先寫進 board，可達性檢查才知道新陸地接不接得上 */
+  for (let y = 0; y < ZH; y++) {
+    for (let x = 0; x < ZW; x++) {
+      if (t[y * ZW + x]) b.terrain[(r.y0 + y) * WORLD_W + (r.x0 + x)] = 1;
+    }
+  }
+  connectUnreachable(t, r);
+
+  const img = terrainCtx.createImageData(ZW, ZH);
+  const u32 = new Uint32Array(img.data.buffer);
+  let land = 0;
+  for (let y = 0; y < ZH; y++) {
+    for (let x = 0; x < ZW; x++) {
+      const li = y * ZW + x;
+      if (!t[li]) continue;
+      land++;
+      b.growBox(r.x0 + x, r.y0 + y);
+      u32[li] = terrainColorAt(r.x0 + x, r.y0 + y);
+    }
+  }
+  terrainCtx.putImageData(img, r.x0, r.y0);
+
+  b.landCount += land;
+  b.cnt[0] += land;
+
+  const z = {
+    gx, gy, x0: r.x0, y0: r.y0, w: ZW, h: ZH,
+    land, open: true, reveal: 1, seed
+  };
+  G.zones.push(z);
+
+  buildZoneCoast(t, r);
+  paintShadow();
+  terrDirty = true;
+
+  buildDistricts(z, t);
+  G.newPlayerArmy = null;
+  assignOwners(z, isHome ? pickHomeDistrict(z) : -1);
+  if (G.newPlayerArmy && G.player) { G.player.sel = G.newPlayerArmy; G.newPlayerArmy = null; }
+  G.grace = CFG.enterGrace;
+  const br = Math.min(4, 2 + Math.floor(G.zones.length / 4));
+  for (const a of G.armies) if (a.owner === 0) a.brush = br;
+  // 鏡頭只往新區塊偏過去一點，不要整個把玩家甩出畫面
+  const u = G.player && G.player.sel;
+  const tcx = r.x0 + ZW / 2, tcy = r.y0 + ZH / 2;
+  if (u) camPanTo(lerp(u.x, tcx, 0.42), lerp(u.y, tcy, 0.42), 1.1);
+  toast('新的領土浮現　·　第 ' + G.zones.length + ' 塊');
+  if (!G.warMode && G.zones.length >= 4) {
+    G.warMode = true;
+    setTimeout(function () { toast('戰役模式　·　敵地只能從自己的領土往外推'); }, 1500);
+    blip(220, 0.3, 0.05, 'sawtooth');
+  }
+  return z;
+}
+
+function buildZoneCoast(t, r) {
+  const b = G.board;
+  const p = new Path2D();
+  for (let y = 0; y < ZH; y++) {
+    for (let x = 0; x < ZW; x++) {
+      if (!t[y * ZW + x]) continue;
+      const wx = r.x0 + x, wy = r.y0 + y;
+      if (!b.isLand(wx, wy - 1)) { p.moveTo(wx, wy); p.lineTo(wx + 1, wy); }
+      if (!b.isLand(wx, wy + 1)) { p.moveTo(wx, wy + 1); p.lineTo(wx + 1, wy + 1); }
+      if (!b.isLand(wx - 1, wy)) { p.moveTo(wx, wy); p.lineTo(wx, wy + 1); }
+      if (!b.isLand(wx + 1, wy)) { p.moveTo(wx + 1, wy); p.lineTo(wx + 1, wy + 1); }
+    }
+  }
+  coastPath.addPath(p);
+}
+
+/* ═══════════════════════════ 單位 ═══════════════════════════ */
+class Unit {
+  constructor(owner, x, y, speed, brush) {
+    this.owner = owner;
+    this.x = x;
+    this.y = y;
+    this.fx = 0;
+    this.fy = 1;
+    this.speed = speed;
+    this.brush = brush;
+    this.alive = true;
+    this.phase = Math.random() * TAU;
+    this.stunned = false;
+    this.breath = 0;
+  }
+}
+
+function canStand(b, x, y, r) {
+  return b.isLand(Math.floor(x - r), Math.floor(y)) &&
+         b.isLand(Math.floor(x + r), Math.floor(y)) &&
+         b.isLand(Math.floor(x), Math.floor(y - r)) &&
+         b.isLand(Math.floor(x), Math.floor(y + r));
+}
+
+function moveUnit(b, u, dx, dy, dt, mult) {
+  if (u.stunned) return;
+  const len = Math.hypot(dx, dy);
+  if (len < 1e-5) return;
+  dx /= len; dy /= len;
+  u.fx = lerp(u.fx, dx, 0.28);
+  u.fy = lerp(u.fy, dy, 0.28);
+  const step = u.speed * (mult || 1) * BIOMES[biomeAt(u.x, u.y)].move * dt;
+  const R = 0.32;
+  const nx = u.x + dx * step;
+  if (canStand(b, nx, u.y, R)) u.x = nx;
+  const ny = u.y + dy * step;
+  if (canStand(b, u.x, ny, R)) u.y = ny;
+}
+
+const _bx = new Int16Array(512);
+const _by = new Int16Array(512);
+const _bd = new Uint8Array(512);
+
+function collectBrush(b, u, cb, rOverride) {
+  const cx = Math.floor(u.x), cy = Math.floor(u.y);
+  if (!b.isLand(cx, cy)) return;
+  const r = rOverride === undefined ? u.brush : rOverride;
+  const id = ++b.stampId;
+  let qh = 0, qt = 0;
+  _bx[qt] = cx; _by[qt] = cy; _bd[qt] = 0; qt++;
+  b.stamp[cy * b.w + cx] = id;
+  while (qh < qt) {
+    const x = _bx[qh], y = _by[qh], d = _bd[qh]; qh++;
+    cb(x, y);
+    if (d >= r) continue;
+    for (let k = 0; k < 4; k++) {
+      const nx = x + (k === 0 ? 1 : k === 1 ? -1 : 0);
+      const ny = y + (k === 2 ? 1 : k === 3 ? -1 : 0);
+      if (!b.isLand(nx, ny)) continue;
+      const ni = ny * b.w + nx;
+      if (b.stamp[ni] === id) continue;
+      b.stamp[ni] = id;
+      if (qt >= 512) continue;
+      _bx[qt] = nx; _by[qt] = ny; _bd[qt] = d + 1; qt++;
+    }
+  }
+}
+
+function applyBrush(b, u, dt) {
+  if (!u.alive || u.stunned) return;
+  const surging = u.owner === 0 && G.surge.t > 0;
+  const dmg = DMG * dt * (surging ? CFG.surgeDmg : 1);
+  const now = b.time;
+  /* 進場保護：剛開新區塊的幾秒內，AI 不能直接吃掉玩家的地 */
+  const grace = u.owner !== 0 && G.grace > 0;
+  collectBrush(b, u, (x, y) => {
+    const i = y * b.w + x;
+    if (b.lock[i] > now) return;
+    const o = b.owner[i];
+    if (o === u.owner) return;
+    /* v14 外交：和平狀態下雙方都不能吃對方的地 */
+    if (u.owner === 0 && o > 0 && !atWar(o)) return;
+    if (o === 0 && u.owner > 0 && !atWar(u.owner)) return;
+    if (grace && o === 0) return;
+    if (o === NEUTRAL) {
+      b.setOwner(i, u.owner);
+      b.hp[i] = HP_MAX;
+      b.lock[i] = now + CFG.captureLock;
+      if (u.owner === 0 && Math.random() < 0.05) {
+        spawnPart(x + 0.5, y + 0.5, COLORS[0].css, 0.16, 0.55);
+      }
+    } else {
+      /* 戰役模式：敵格只能從自己的領土往外推 */
+      if (G.warMode && !supplied(b, i, u.owner)) return;
+      b.hp[i] -= dmg;
+      if (b.hp[i] <= 0) {
+        b.setOwner(i, u.owner);
+        b.hp[i] = HP_MAX;
+        b.lock[i] = now + CFG.captureLock;
+        spawnBurst(x + 0.5, y + 0.5, COLORS[o].css);
+        if (u.owner === 0) sfxFlip();
+      }
+    }
+  }, surging ? u.brush + 1 : undefined);
+}
+
+/* 戰役模式：只能從自己的領土往外推 —— 敵格必須緊鄰自己的地才打得動 */
+function supplied(b, i, owner) {
+  const x = i % b.w, y = (i / b.w) | 0;
+  if (x > 0 && b.owner[i - 1] === owner) return true;
+  if (x < b.w - 1 && b.owner[i + 1] === owner) return true;
+  if (y > 0 && b.owner[i - b.w] === owner) return true;
+  if (y < b.h - 1 && b.owner[i + b.w] === owner) return true;
+  return false;
+}
+
+/* ═══════════════════════════ 人口與兵團 ═══════════════════════════ */
+function playerPop() {
+  let p = 0;
+  for (const cap of G.caps) if (cap.owner === 0) p += cap.pop || 0;
+  return p;
+}
+
+/* v10：全國總兵力（野戰兵團 + 守軍） */
+function playerMen() {
+  let s = 0;
+  for (const a of G.armies) if (a.alive && a.owner === 0) s += a.men;
+  return s;
+}
+function ownerMen(owner) {
+  let s = 0;
+  for (const a of G.armies) if (a.alive && a.owner === owner) s += a.men;
+  return s;
+}
+
+/* v10：人口 → 兵力轉化。
+   每滿 10000 人成軍一次。攻下主城拿到的這批人口會立刻結算，
+   不用等到下一個 30 秒週期；丟城時把已結算的額度收回到現有人口，
+   否則會留下負債，之後要先把缺口補回來才會再成軍。 */
+function convertPlayerPop() {
+  const total = playerPop();
+  if (G.popPaid > total) G.popPaid = total;
+  let guard = 0;
+  while (total - G.popPaid >= 10000 && guard++ < 40) {
+    G.popPaid += 10000;
+    spawnArmy(0);
+  }
+}
+
+/* ═══════════════════ 兵團（v7：沒有角色，只有兵團） ═══════════════════ */
+function armyOf(owner) { return G.armies.filter(function (a) { return a.alive && a.owner === owner; }); }
+
+/* 敵國強度倍率：隨區塊數成長（1.0 → 6）
+   v8.1 已回調成 v7 的曲線（`0.5×區塊數`，上限 6）。
+   `CFG.lateK` 留著當旋鈕：0 = v7 行為，0.02 ≈ 區塊 4 之後每塊再 +2%。 */
+function zoneMul() {
+  const z = G.zones.length;
+  const late = 1 + CFG.lateK * Math.max(0, z - 4);
+  return clamp(z * 0.5 * late, 1, CFG.zoneMulCap);
+}
+
+function addArmy(owner, x, y, men, homeCap, z) {
+  const speed = owner === 0
+    ? CFG.playerSpeed * 0.94
+    : Math.min(CFG.aiSpeedMax, CFG.aiSpeedBase + CFG.aiSpeedPerZone * (G.zones.length - 1));
+  const a = new Unit(owner, x, y, speed, 3);
+  a.kind = 'army';
+  a.men = men;
+  a.uid = ++G.uidSeq;
+  a.home = homeCap || null;
+  a.zone = z || null;
+  a.alive = true;
+  a.out = false;
+  a.phase = Math.random() * 6.28;
+  a.retarget = 0;
+  a.tx = x; a.ty = y;
+  G.armies.push(a);
+  return a;
+}
+
+/* ───────── v9：敵軍優勢的生效條件 ─────────
+   敵人的守城優勢（主城傷害／減傷／城防／圍城壓制／全民皆兵／守軍增額）
+   和多兵團集結優勢，要「奪取 10 塊之後」才生效；ESC 暫停畫面可以整個關掉。
+   玩家自己的主城照舊生效，不受這個閘影響。 */
+function enemyBuff() {
+  if (!G.buffOn) return false;
+  return G.zones.length > CFG.lateGate;
+}
+
+/* ══════════ v14 外交 ══════════
+   佔領第一片大陸之後解鎖。對每個敵國可以選擇「和平」或「宣戰」。
+   和平：雙方不交戰、不能互相吃地、不能互相圍城；
+   AI 之間的關係不受影響（永遠互相打）。 */
+function atWar(owner) {
+  if (owner <= 0) return true;
+  if (!G.diplo) return true;
+  return G.wars[owner] !== false;
+}
+
+function setWar(owner, on) {
+  if (!G.diplo) return;
+  G.wars[owner] = !!on;
+  const r = G.rivals.find(function (x) { return x.owner === owner; });
+  const nm = (r && r.name) || COLORS[owner].name;
+  toast(nm + (on ? '　·　宣戰' : '　·　締結和平'));
+  rivalSig = '';
+  updateHUD();
+}
+
+/* 佔領整片大陸之後：還有第二片大陸（那裡的統一帝國） */
+function startStage(n) {
+  hideOverlay();
+  newGame({ stage: n });
+  G.state = 'playing';
+  hudEl.classList.add('on');
+  cam.cell = fitCell();
+  if (G.player && G.player.sel) { cam.x = G.player.sel.x; cam.y = G.player.sel.y; }
+  toast(G.unified ? '新大陸　·　大一統帝國' : '新大陸');
+  updateHUD();
+}
+
+/* ───────── v8 守城優勢 ─────────
+   1) capMul   ：離自己主城越近，打出去的傷害越高（傷害倍率 1.7 → 3.2）
+   2) homeArmor：離自己主城越近，承受的傷害越低（0.58 → 1.0）
+   兩者相乘，在自己的主城範圍內作戰大概是原本的 2~5 倍強度。
+   原本只有「4.5 格內 ×1.75」一檔，城牆感很薄。 */
+function capMul(a) {
+  if (a.owner > 0 && !enemyBuff()) return 1;
+  let best = 1;
+  for (const c of G.caps) {
+    if (c.owner !== a.owner) continue;
+    const d = Math.hypot(c.x - a.x, c.y - a.y);
+    if (d <= 3.5) best = Math.max(best, 3.2);
+    else if (d <= 8) best = Math.max(best, 2.4);
+    else if (d <= 13) best = Math.max(best, 1.7);
+  }
+  return best;
+}
+
+function homeArmor(a) {
+  if (a.owner > 0 && !enemyBuff()) return 1;
+  for (const c of G.caps) {
+    if (c.owner !== a.owner) continue;
+    const d = Math.hypot(c.x - a.x, c.y - a.y);
+    if (d <= 4) return 0.58;
+    if (d <= 9) return 0.78;
+    if (d <= 14) return 0.92;
+  }
+  return 1;
+}
+
+/* ───────── v8 多兵團作戰優勢 ─────────
+   同一陣營 8 格內每多一支友軍，這支的傷害 +4%（v8.1 從 28% 下調，上限維持 ×3.2）。
+   敵國兵團數沒有上限，所以這條對敵國的中後期加成比較明顯；
+   守軍也吃這條，等於「守城時城裡擠越多部隊越難打」。 */
+function focusMul(a, arr) {
+  if (a.owner > 0 && !enemyBuff()) return 1;
+  arr = arr || G.armies;
+  let n = 0;
+  for (const o of arr) {
+    if (o === a || !o.alive || o.owner !== a.owner) continue;
+    if (Math.hypot(o.x - a.x, o.y - a.y) <= CFG.focusRadius) n++;
+  }
+  return Math.min(CFG.focusCap, 1 + CFG.focusStep * n);
+}
+
+function killArmy(a, quiet) {
+  if (!a.alive) return;
+  a.alive = false;
+  if (!quiet) for (let k = 0; k < 10; k++) spawnPart(a.x, a.y, COLORS[a.owner].css, 0.7, 0.6);
+  const i = G.armies.indexOf(a);
+  if (i >= 0) G.armies.splice(i, 1);
+  if (G.player && G.player.sel === a) {
+    const rest = armyOf(0);
+    G.player.sel = rest.length ? rest[0] : null;
+    if (G.player.sel) toast('兵團被殲滅　·　改由另一支接管');
+  }
+}
+
+/* 兵團互撞：兵力多、離自己主城近、身邊友軍多的一方，都能讓對方消耗更快。
+   v8 傷害公式：
+     a 損失 = 11 · dt · (0.4 + o兵/1000) · capMul(o) · focus(o) · homeArmor(a)
+   也就是「打人的那方」吃主城加成與集結加成，「挨打的那方」吃主城減傷。 */
+function resolveCombat(dt) {
+  const arr = G.armies.filter(function (a) { return a.alive; });
+  /* 每個兵團的加成先算一次再進 O(n²) 迴圈：
+     capMul / homeArmor 都要掃全城主城，放在配對迴圈裡會變成 O(n²×主城數)，
+     大後期上百支兵團時會直接掉幀。 */
+  for (const a of arr) {
+    a._focus = focusMul(a, arr);
+    a._cm = capMul(a);
+    a._ar = homeArmor(a);
+  }
+  for (let i = 0; i < arr.length; i++) {
+    const a = arr[i];
+    if (!a.alive) continue;
+    for (let j = i + 1; j < arr.length; j++) {
+      const o = arr[j];
+      if (!o.alive || o.owner === a.owner) continue;
+      /* v14 外交：和平的兩國不交戰 */
+      if (a.owner === 0 && !atWar(o.owner)) continue;
+      if (o.owner === 0 && !atWar(a.owner)) continue;
+      if (Math.hypot(a.x - o.x, a.y - o.y) > 1.05) continue;
+      a.men -= 11 * dt * (0.4 + o.men / 1000) * o._cm * o._focus * a._ar;
+      o.men -= 11 * dt * (0.4 + a.men / 1000) * a._cm * a._focus * o._ar;
+      if (Math.random() < dt * 7) spawnPart((a.x + o.x) / 2, (a.y + o.y) / 2, '#ffd6a0', 0.6, 0.5);
+    }
+  }
+  for (const a of G.armies.slice()) if (a.alive && a.men <= 0.5) killArmy(a);
+}
+
+/* 兵團 AI：守自家主城 > 攔截敵軍 > 攻敵方主城 > 吃地 */
+function armyThink(a, dt, b) {
+  // 已經站在敵方主城上：守著把圍城跑完，不要中途跑去吃地
+  if (a.goal && a.goal.prog !== undefined && a.goal.owner !== a.owner &&
+      Math.hypot(a.goal.x - a.x, a.goal.y - a.y) < 2.0) {
+    a.think = 0.6;
+    const hx2 = a.goal.x - a.x, hy2 = a.goal.y - a.y, hd2 = Math.hypot(hx2, hy2);
+    if (hd2 > 0.06) moveUnit(b, a, hx2 / hd2, hy2 / hd2, dt, 1);
+    applyBrush(b, a, dt);
+    return;
+  }
+  if (a.rally > 0) a.rally = Math.max(0, a.rally - dt);   // v10 集結倒數
+  a.think = (a.think || 0) - dt;
+  if (a.think <= 0 || !a.goal) {
+    a.think = 0.7 + Math.random() * 0.7;
+    a.goal = null;
+    /* v10 集結令：被召集的本國野戰兵團直接往你操控的那支靠攏。
+       v13 歸位令：被派回原地的兵團往自家主城走，到了就停在城邊待命。
+       守軍兩條都不跟（城還是要有人看）。 */
+    if (a.owner === 0 && !a.garrison) {
+      if (a.rally > 0) {
+        const cu = controlledUnit();
+        if (cu && cu !== a) a.goal = { x: cu.x, y: cu.y };
+      } else if (a.returning) {
+        /* 回程或駐地時被敵人貼上就自動解除歸位、正常接戰，不要站著挨打 */
+        let foe = false;
+        for (const o of G.armies) {
+          if (!o.alive || o.owner === a.owner) continue;
+          if (Math.hypot(o.x - a.x, o.y - a.y) < 5.5) { foe = true; break; }
+        }
+        if (foe) {
+          a.returning = false;
+        } else {
+          const hp = homePoint(a);
+          if (hp) {
+            a.goal = { x: hp.x, y: hp.y };
+            if (Math.hypot(hp.x - a.x, hp.y - a.y) <= 1.4) a.think = 1.2;   // 到了就待命
+          } else {
+            a.returning = false;
+          }
+        }
+      }
+    }
+    if (!a.goal && a.garrison && a.home) {
+      let foe = null, fd = 1e9;
+      for (const o of G.armies) {
+        if (!o.alive || o.owner === a.owner) continue;
+        if (a.owner === 0 && !atWar(o.owner)) continue;       // v14 外交
+        if (o.owner === 0 && !atWar(a.owner)) continue;
+        const d = Math.hypot(o.x - a.x, o.y - a.y);
+        if (d < fd) { fd = d; foe = o; }
+      }
+      if (foe && fd < CFG.garrisonRange) a.goal = foe;
+      else a.goal = { x: a.home.x, y: a.home.y };
+      const gdx = a.goal.x - a.x, gdy = a.goal.y - a.y, gd = Math.hypot(gdx, gdy);
+      if (gd > 0.06) moveUnit(b, a, gdx / gd, gdy / gd, dt, 1);
+      applyBrush(b, a, dt);
+      return;
+    }
+    // 1) 自家主城被敵人圍 → 回防（v8：32 格內所有部隊都會回防，不只守軍）
+    if (a.home && a.home.owner === a.owner) {
+      const sg = siegerOf(a.home);
+      if (sg !== -2 && sg !== a.owner) a.goal = a.home;
+    }
+    if (!a.goal && a.owner > 0) {
+      for (const c of G.caps) {
+        if (c.owner !== a.owner) continue;
+        if (Math.hypot(c.x - a.x, c.y - a.y) > 32) continue;
+        const sg = siegerOf(c);
+        if (sg !== -2 && sg !== a.owner) { a.goal = c; break; }
+      }
+    }
+    // 2) 敵軍在附近 → 攔截；友軍已經在打同一個目標就一起上（v8 集結）
+    if (!a.goal) {
+      let near = null, nd = 1e9;
+      for (const o of G.armies) {
+        if (!o.alive || o.owner === a.owner) continue;
+        /* v14 外交：不去打已經和平的國家，也不被和平國家的部隊引走 */
+        if (a.owner === 0 && !atWar(o.owner)) continue;
+        if (o.owner === 0 && !atWar(a.owner)) continue;
+        const d = Math.hypot(o.x - a.x, o.y - a.y);
+        let eff = d;
+        if (a.owner > 0 && d < 30) {
+          for (const m of G.armies) {
+            if (m === a || !m.alive || m.owner !== a.owner) continue;
+            if (Math.hypot(m.x - o.x, m.y - o.y) < 9) { eff = d * 0.72; break; }
+          }
+        }
+        if (eff < nd) { nd = eff; near = o; }
+      }
+      if (G.grace > 0 && near && near.owner === 0) near = null;
+      if (near && nd < 14 + 12 * aggroMul()) {
+        // v8 撤退判斷改成看「附近友軍的總兵力」：不再因為自己一支比較小就全線逃跑
+        let allyMen = 0;
+        if (a.owner > 0) {
+          for (const m of G.armies) {
+            if (!m.alive || m.owner !== a.owner) continue;
+            if (Math.hypot(m.x - near.x, m.y - near.y) < 12) allyMen += m.men;
+          }
+        }
+        if (a.owner > 0 && a.home && allyMen < near.men * 0.45) a.goal = a.home;
+        else a.goal = near;
+      }
+    }
+    // 3) 敵方主城在附近 → 去打（AI 才有壓迫感）
+    if (!a.goal && a.owner > 0 && G.zones.length > 1) {
+      let best = null, bd = 1e9;
+      const hx = a.home ? a.home.x : a.x, hy = a.home ? a.home.y : a.y;
+      for (const c of G.caps) {
+        if (c.owner === a.owner) continue;
+        if (c.owner === 0 && !atWar(a.owner)) continue;   // v14：和平就不打玩家主城
+        // 主要以出生地周邊為活動範圍：離家太遠的主城不去
+        if (Math.hypot(c.x - hx, c.y - hy) > 60) continue;
+        const d = Math.hypot(c.x - a.x, c.y - a.y);
+        if (d < bd) { bd = d; best = c; }
+      }
+      if (best && bd < 60 && G.grace <= 0 && Math.random() < 0.85 * aggroMul()) a.goal = best;
+    }
+    // 4) 沒有別的事就吃地
+    if (!a.goal) {
+      // 主要在原出生地附近活動；被玩家帶到遠處時，就地在腳下吃地
+      const awayFromHome = a.home && Math.hypot(a.x - a.home.x, a.y - a.home.y) > 16;
+      const cxw = awayFromHome ? a.x : (a.home ? a.home.x : a.x);
+      const cyw = awayFromHome ? a.y : (a.home ? a.home.y : a.y);
+      const gx = Math.floor(cxw) - (ZW >> 1);
+      const gy = Math.floor(cyw) - (ZH >> 1);
+      let best = null, bd = 1e9;
+      for (let k = 0; k < 44; k++) {
+        const wx = gx + ((Math.random() * ZW) | 0);
+        const wy = gy + ((Math.random() * ZH) | 0);
+        if (wx < 0 || wy < 0 || wx >= WORLD_W || wy >= WORLD_H) continue;
+        const i2 = wy * WORLD_W + wx;
+        if (!b.terrain[i2]) continue;
+        if (b.owner[i2] === a.owner) continue;
+        const d = Math.hypot(wx + 0.5 - a.x, wy + 0.5 - a.y);
+        const score = d * (b.owner[i2] === NEUTRAL ? 1 : 0.7 / aggroMul());
+        if (score < bd) { bd = score; best = { x: wx + 0.5, y: wy + 0.5 }; }
+      }
+      a.goal = best || { x: a.x, y: a.y };
+    }
+  }
+  const g = a.goal;
+  const dx = g.x - a.x, dy = g.y - a.y;
+  const d = Math.hypot(dx, dy);
+  if (d > 0.06) moveUnit(b, a, dx / d, dy / d, dt, 1);
+  applyBrush(b, a, dt);
+}
+
+/* 野戰兵團被打光時，守軍抽一半出城打野戰（不然敵國只剩龜縮） */
+let garT = 0;
+function mobilizeGarrisons(dt) {
+  garT -= dt;
+  if (garT > 0) return;
+  garT = 1.2;
+  for (const r of G.rivals) {
+    if (r.dead) continue;
+    // v8：自己的主城正在被圍就不要抽守軍出城（抽走等於直接把城送掉）
+    let underSiege = false;
+    for (const c of G.caps) {
+      if (c.owner !== r.owner) continue;
+      const sg = siegerOf(c);
+      if (sg !== -2 && sg !== r.owner) { underSiege = true; break; }
+    }
+    if (underSiege) continue;
+    const list = armyOf(r.owner);
+    if (list.some(function (a) { return !a.garrison; })) continue;  // 還有野戰軍就不用動
+    const gar = list.filter(function (a) { return a.garrison; });
+    if (gar.length < 2) continue;
+    const n = Math.max(1, Math.floor(gar.length / 2));
+    for (let i = 1; i <= n && i < gar.length; i++) {
+      const g = gar[i];
+      g.garrison = false;
+      g.think = 0;
+      g.goal = null;
+      g.tx = g.ty = 0;
+      g.retarget = 0;
+    }
+    if (Date.now() - (G.mobFlash[r.owner] || 0) > 15000) {
+      G.mobFlash[r.owner] = Date.now();
+      toast('敵軍調動　·　' + rivalName(r.owner) + ' 的守軍出城了');
+    }
+  }
+}
+
+/* v8：守軍沒被貼著打的時候會在城裡補員（回滿到最初的人數上限）。
+   避免玩家用「打一下就跑」的游擊把守軍磨光，攻城必須真的打進去。 */
+let garRegenT = 0;
+function regenGarrisons(dt) {
+  garRegenT -= dt;
+  if (garRegenT > 0) return;
+  garRegenT = 1;
+  for (const a of G.armies) {
+    if (!a.alive || !a.garrison || !a.home) continue;
+    if (a.home.owner !== a.owner) continue;
+    if (a.g0 === undefined) a.g0 = a.men;
+    let foe = false;
+    for (const o of G.armies) {
+      if (!o.alive || o.owner === a.owner) continue;
+      if (Math.hypot(o.x - a.x, o.y - a.y) < 6) { foe = true; break; }
+    }
+    if (foe) continue;
+    if (a.men < a.g0) a.men = Math.min(a.g0, a.men + a.g0 * 0.012);
+  }
+}
+
+function updateArmies(dt, b) {
+  const sel = G.player && G.player.sel;
+  mobilizeGarrisons(dt);
+  regenGarrisons(dt);
+  for (const a of G.armies.slice()) {
+    if (!a.alive || a === sel) continue;
+    armyThink(a, dt, b);
+  }
+  resolveCombat(dt);
+}
+
+/* v14：兵團佔位 —— 兩個兵團不能疊在同一個點上。
+   用軟性推擠（每幀只推開一半重疊量），不會像硬碰撞一樣抖動；
+   推的方向如果會掉進海裡就不推，避免被擠下水。 */
+const MIN_SEP = 0.62;
+function nudgeUnit(u, dx, dy) {
+  const b = G.board;
+  const nx = u.x + dx;
+  if (canStand(b, nx, u.y, 0.30)) u.x = nx;
+  const ny = u.y + dy;
+  if (canStand(b, u.x, ny, 0.30)) u.y = ny;
+}
+function separateArmies() {
+  const arr = G.armies;
+  for (let i = 0; i < arr.length; i++) {
+    const a = arr[i];
+    if (!a.alive) continue;
+    for (let j = i + 1; j < arr.length; j++) {
+      const o = arr[j];
+      if (!o.alive) continue;
+      let dx = o.x - a.x, dy = o.y - a.y;
+      const d2 = dx * dx + dy * dy;
+      if (d2 >= MIN_SEP * MIN_SEP) continue;
+      let d = Math.sqrt(d2);
+      if (d < 1e-4) {                        // 完全重疊：隨便挑一個方向分開
+        dx = Math.random() - 0.5;
+        dy = Math.random() - 0.5;
+        d = Math.hypot(dx, dy) || 1;
+      }
+      const nx = dx / d, ny = dy / d;
+      const push = (MIN_SEP - d) * 0.5;
+      nudgeUnit(a, -nx * push, -ny * push);
+      nudgeUnit(o, nx * push, ny * push);
+    }
+  }
+}
+
+function controlledUnit() {
+  if (!G.player) return null;
+  const a = G.player.sel;
+  return a && a.alive ? a : null;
+}
+
+function selectArmy(dir) {
+  const mine = armyOf(0);
+  if (!mine.length) { toast('你已經沒有兵團了'); return; }
+  const i = mine.indexOf(G.player.sel);
+  const n = mine.length;
+  const k = i < 0 ? 0 : ((i + (dir || 1)) % n + n) % n;
+  G.player.sel = mine[k];
+  G.surge.t = 0;
+  toast('兵團 ' + (k + 1) + ' / ' + n + '　·　' + Math.round(mine[k].men) + ' 人');
+  camPanTo(mine[k].x, mine[k].y, 0.5);
+  updateHUD();
+}
+
+/* v10：按 O 集結 —— 本國所有野戰兵團往你操控的那支靠攏 */
+/* v11：緊急征召令 —— 立刻抽 1% 人口成軍，冷卻 30 秒。
+   人口先按各主城人口比例扣掉，再從主城出兵；兵團已達上限時
+   spawnArmy 會把這批人併進最弱的一支（人口已經扣過，不會白送兵）。 */
+function emergencyDraft() {
+  if (G.state !== 'playing') return;
+  if (G.draftCd > 0) {
+    toast('征召冷卻中　·　' + Math.ceil(G.draftCd) + ' 秒');
+    return;
+  }
+  const caps = G.caps.filter(function (c) { return c.owner === 0 && (c.pop || 0) > 100; });
+  if (!caps.length) { toast('沒有主城可以征召'); return; }
+  const pop = playerPop();
+  const men = Math.floor(pop * G.draftPct);
+  if (men < 50) { toast('人口不足，無法征召'); return; }
+
+  let need = men;
+  const byPop = caps.slice().sort(function (p, q) { return (q.pop || 0) - (p.pop || 0); });
+  for (const c of byPop) {
+    if (need <= 0) break;
+    const share = Math.round(men * ((c.pop || 0) / pop));
+    const take = Math.min(need, share, Math.max(0, Math.floor((c.pop || 0) - 100)));
+    if (take > 0) { c.pop -= take; need -= take; }
+  }
+  if (need > 0) {                       // 零頭由人口最多的主城補
+    for (const c of byPop) {
+      if (need <= 0) break;
+      const take = Math.min(need, Math.max(0, Math.floor((c.pop || 0) - 100)));
+      if (take > 0) { c.pop -= take; need -= take; }
+    }
+  }
+  const granted = men - need;
+  if (granted < 50) { toast('人口不足，無法征召'); return; }
+
+  G.draftCd = CFG.draftCd;
+  let rest = granted, last = null;
+  while (rest >= 100) {
+    const chunk = Math.min(500, rest);
+    last = spawnArmy(0, null, chunk, true) || last;
+    rest -= chunk;
+  }
+  if (rest > 0) {                        // 不足一支的零頭給當前兵團
+    const t = controlledUnit() || last;
+    if (t) t.men += rest;
+  }
+  const cu = controlledUnit();
+  if (cu) for (let k = 0; k < 18; k++) spawnPart(cu.x, cu.y, '#ffe08a', 1.0, 0.8);
+  toast('緊急征召　·　' + fmtMen(granted) + ' 人入伍');
+  blip(760, 0.18, 0.05, 'square');
+  updateHUD();
+}
+
+/* v13：兵團的「原所在地」＝自家主城；主城丟了就往最近的自家主城 */
+function homePoint(a) {
+  if (a.home && a.home.owner === a.owner) return a.home;
+  let best = null, bd = 1e9;
+  for (const c of G.caps) {
+    if (c.owner !== a.owner) continue;
+    const d = Math.hypot(c.x - a.x, c.y - a.y);
+    if (d < bd) { bd = d; best = c; }
+  }
+  return best;
+}
+
+function rallyArmies() {
+  const cu = controlledUnit();
+  if (!cu) { toast('沒有可以集結的兵團'); return; }
+  const pool = G.armies.filter(function (a) {
+    return a.alive && a.owner === 0 && a !== cu && !a.garrison;
+  });
+  if (!pool.length) { toast('沒有其他兵團可以集結'); return; }
+  const nearMode = G.rallyMode !== 'all';
+  let list = pool;
+  if (nearMode) {
+    pool.sort(function (p, q) {
+      return Math.hypot(p.x - cu.x, p.y - cu.y) - Math.hypot(q.x - cu.x, q.y - cu.y);
+    });
+    list = pool.slice(0, clamp(Math.round(G.rallyCount) || 1, 1, 20));
+  }
+  for (const a of list) {
+    a.rally = CFG.rallyDur;
+    a.returning = false;
+    a.think = 0;
+    a.goal = { x: cu.x, y: cu.y };
+  }
+  toast('集結令　·　' + (nearMode ? '最近的 ' : '全國 ') + list.length + ' 支兵團向你靠攏');
+  blip(700, 0.14, 0.05, 'triangle');
+  for (let k = 0; k < 12; k++) spawnPart(cu.x, cu.y, '#2ee6c8', 1.0, 0.8);
+}
+
+/* v13：按 P 讓閒置的本國野戰兵團回到原所在地。
+   正在交戰的不叫回來，避免把打到一半的部隊硬拉走。 */
+function returnArmies() {
+  const cu = controlledUnit();
+  let n = 0, busyCount = 0;
+  for (const a of G.armies) {
+    if (!a.alive || a.owner !== 0 || a.garrison || a === cu) continue;
+    let busy = false;
+    for (const o of G.armies) {
+      if (!o.alive || o.owner === 0) continue;
+      if (Math.hypot(o.x - a.x, o.y - a.y) < 3.2) { busy = true; break; }
+    }
+    if (busy) { busyCount++; continue; }
+    const hp = homePoint(a);
+    if (!hp) continue;
+    a.rally = 0;
+    a.returning = true;
+    a.think = 0;
+    a.goal = { x: hp.x, y: hp.y };
+    n++;
+  }
+  if (n) {
+    toast('歸位令　·　' + n + ' 支兵團返回駐地' + (busyCount ? '（' + busyCount + ' 支交戰中留下）' : ''));
+    blip(420, 0.16, 0.05, 'sine');
+  } else {
+    toast(busyCount ? '兵團正在交戰，無法歸位' : '沒有閒置的兵團可以歸位');
+  }
+}
+
+function reinforceArmy(amount) {
+  const a = controlledUnit();
+  if (!a) { toast('先選一支兵團（Q / E）'); return; }
+  const mine = G.caps.filter(c => c.owner === 0);
+  if (!mine.length) { toast('沒有主城可以抽兵'); return; }
+  mine.sort(function (p, q) { return (q.pop || 0) - (p.pop || 0); });
+  const cap = mine[0];
+  const take = Math.min(amount, Math.max(0, Math.floor((cap.pop || 0) - 100)));
+  if (take < 10) { toast('主城人口不夠抽兵'); return; }
+  cap.pop -= take;
+  a.men += take;
+  for (let k = 0; k < 10; k++) spawnPart(a.x, a.y, '#ffe08a', 0.6, 0.5);
+  toast('補兵 +' + take + '　·　' + Math.round(a.men) + ' 人');
+  blip(560, 0.14, 0.05, 'triangle');
+  updateHUD();
+}
+
+function spawnArmy(owner, atCap, men, paid) {
+  owner = owner === undefined ? 0 : owner;
+  men = men || (owner === 0 ? 500 : Math.min(CFG.enemySpawnCap, Math.round(CFG.enemySpawnBase * zoneMul())));
+  const mine = atCap ? [atCap] : G.caps.filter(function (c) { return c.owner === owner; });
+  if (!mine.length) return null;
+  const cap = mine[(Math.random() * mine.length) | 0];
+  const list = armyOf(owner).filter(function (a) { return !a.garrison; });
+  if (owner === 0 && list.length >= G.armyCap) {
+    list.sort(function (p, q) { return p.men - q.men; });
+    list[0].men += men;
+    if (owner === 0) toast('兵團已達上限　·　' + men + ' 人併入既有兵團');
+    return list[0];
+  }
+  /* paid = 人口已經由呼叫端扣掉（緊急征召令），不要重複扣 */
+  if (!paid) cap.pop = Math.max(60, (cap.pop || 0) - men);
+  const a = addArmy(owner, cap.x, cap.y, men, cap, cap.zone);
+  for (let k = 0; k < 16; k++) spawnPart(cap.x, cap.y, '#ffe08a', 0.9, 0.75);
+  if (owner === 0) {
+    toast('新兵團成軍　·　' + men + ' 人　·　共 ' + armyOf(0).length + ' 支');
+    if (!G.player.sel) G.player.sel = a;
+    blip(640, 0.16, 0.05, 'triangle');
+  }
+  return a;
+}
+
+function updatePop(dt) {
+  G.popT += dt;
+  if (G.popT < 30) return;
+  G.popT -= 30;
+  for (const cap of G.caps) {
+    const g = BIOMES[cap.biome || 0].grow;
+    const max = Math.max(20000, (cap.district ? cap.district.size : 60) * 300);
+    cap.pop = Math.min(max, (cap.pop || 0) * (1 + 0.14 * g) + 4);
+  }
+  /* v10：這裡每 30 秒結算一次；攻下主城的當下也會另外結算（見 captureDistrict） */
+  convertPlayerPop();
+  // 敵國也會從自己的人口成軍，才不會打完一輪就沒兵
+  for (const r of G.rivals) {
+    if (r.dead) continue;
+    let p = 0;
+    for (const c of G.caps) if (c.owner === r.owner) p += c.pop || 0;
+    let paid = G.popPaidBy[r.owner] || 0;
+    while (p - paid >= 10000) {
+      paid += 10000;
+      if (armyOf(r.owner).length < G.armyCap) spawnArmy(r.owner);
+    }
+    G.popPaidBy[r.owner] = paid;
+  }
+}
+
+function ownGround(b, u) {
+  const cx = Math.floor(u.x), cy = Math.floor(u.y);
+  if (b.owner[cy * b.w + cx] === u.owner) return true;
+  if (cx > 0 && b.owner[cy * b.w + cx - 1] === u.owner) return true;
+  if (cx < b.w - 1 && b.owner[cy * b.w + cx + 1] === u.owner) return true;
+  if (cy > 0 && b.owner[(cy - 1) * b.w + cx] === u.owner) return true;
+  if (cy < b.h - 1 && b.owner[(cy + 1) * b.w + cx] === u.owner) return true;
+  return false;
+}
+
+/* ═══════════════════════════ AI ═══════════════════════════ */
+const _from = new Int32Array(WORLD_W * WORLD_H);
+const _seen = new Uint8Array(WORLD_W * WORLD_H);
+const _queue = new Int32Array(WORLD_W * WORLD_H);
+
+class Brain {
+  constructor(unit) {
+    this.u = unit;
+    this.t = 0;
+    this.tx = unit.x;
+    this.ty = unit.y;
+    this.has = false;
+    this.cap = null;        // 正在圍的城
+    this.stuck = 0;
+    this.lastX = unit.x;
+    this.lastY = unit.y;
+  }
+
+  update(dt, b) {
+    const u = this.u;
+    if (!u.alive || u.stunned) return;
+
+    /* 已經站在別人的主城上 → 站著不動就是圍城，別再抽新目標 */
+    if (this.cap && this.cap.owner !== u.owner) {
+      const dc = Math.hypot(this.cap.x - u.x, this.cap.y - u.y);
+      if (dc < 0.85) { this.has = false; this.t = 0.2; return; }
+    }
+
+    this.t -= dt;
+    if (this.t <= 0) {
+      this.pick(b);
+      this.t = 0.34 + Math.random() * 0.24;
+    }
+
+    if (!this.has) return;
+    const dx = this.tx - u.x, dy = this.ty - u.y;
+    const d = Math.hypot(dx, dy);
+    if (d > 0.5) {
+      moveUnit(b, u, dx, dy, dt);
+      /* 卡住偵測：兩秒內幾乎沒位移就換目標 */
+      if (Math.hypot(u.x - this.lastX, u.y - this.lastY) < 0.02) {
+        this.stuck += dt;
+        if (this.stuck > 1.2) { this.stuck = 0; this.has = false; this.t = 0; this.cap = null; }
+      } else { this.stuck = 0; }
+    } else {
+      this.t = Math.min(this.t, 0.1);
+    }
+    this.lastX = u.x; this.lastY = u.y;
+  }
+
+  /* 重新挑目標：中立地 / 玩家地 / 別人的地 / 別人的主城 */
+  pick(b) {
+    const u = this.u;
+    const cx = Math.floor(u.x), cy = Math.floor(u.y);
+    const mine = b.cnt[u.owner + 1];
+    const hungry = mine < 26;
+    const aggro = (u.owner !== 0) ? (AGGRO[G.aggression] || 0.8) : 1;
+    const warm = G.t < CFG.warmup ? 0.2 : 1;
+    const R = hungry ? 40 : 30;
+
+    let best = -1, bestScore = 0, bestCap = null;
+
+    /* 主城優先：強攻時會專程去拆玩家的城 */
+    for (const cap of G.caps) {
+      if (cap.owner === u.owner) continue;
+      if (cap.owner === 0 && aggro < 1.4) continue;   // 只有「強」才會打玩家的城
+      const d = Math.abs(cap.x - u.x) + Math.abs(cap.y - u.y);
+      if (d > 46) continue;
+      let v = cap.owner === 0 ? aggro * 2.9 * warm : 1.55;
+      if (hungry) v *= 0.55;
+      const sc = v / (1 + d * 0.028) * (0.9 + Math.random() * 0.2);
+      if (sc > bestScore) { bestScore = sc; best = cap.i; bestCap = cap; }
+    }
+
+    for (let y = Math.max(0, cy - R); y <= Math.min(b.h - 1, cy + R); y++) {
+      for (let x = Math.max(0, cx - R); x <= Math.min(b.w - 1, cx + R); x++) {
+        const i = y * b.w + x;
+        if (!b.terrain[i]) continue;
+        const o = b.owner[i];
+        if (o === u.owner) continue;
+        const d = Math.abs(x - cx) + Math.abs(y - cy);
+        let v;
+        if (o === NEUTRAL) v = 1.0;
+        else if (o === 0) v = aggro * warm * (hungry ? 0.5 : 1.0);
+        else v = 2.05 * (hungry ? 0.6 : 1.0);          // 對其他 AI 永遠強
+        /* 距離衰減故意放很慢：遠一點的地也吃，AI 才不會只在自己腳邊打轉 */
+        const sc = v / (1 + d * 0.014) * (0.78 + Math.random() * 0.44);
+        if (sc > bestScore) { bestScore = sc; best = i; bestCap = null; }
+      }
+    }
+
+    this.cap = bestCap;
+    if (best < 0) {
+      /* 周圍真的沒東西可吃（整個區塊都是自己的）→ 往最近的未佔格走 */
+      let far = -1, farD = 1e9;
+      for (let k = 0; k < b.n; k++) {
+        if (!b.terrain[k] || b.owner[k] === u.owner) continue;
+        const d = Math.abs(k % b.w - cx) + Math.abs(((k / b.w) | 0) - cy);
+        if (d < farD) { farD = d; far = k; }
+      }
+      if (far < 0) { this.has = false; return; }
+      best = far;
+    }
+
+    const step = this.pathTo(b, cx, cy, best);
+    if (step < 0) {
+      /* 走不到 → 先往目標方向硬走一小段，不要罰站 */
+      const tx = (best % b.w) + 0.5, ty = ((best / b.w) | 0) + 0.5;
+      this.tx = tx; this.ty = ty; this.has = true;
+      return;
+    }
+    this.tx = (step % b.w) + 0.5;
+    this.ty = ((step / b.w) | 0) + 0.5;
+    this.has = true;
+  }
+
+  pathTo(b, cx, cy, target) {
+    const w = b.w;
+    const start = cy * w + cx;
+    if (start === target) return -1;
+    const seen = _seen, q = _queue, from = _from;
+    let qh = 0, qt = 0;
+    q[qt++] = start; seen[start] = 1; from[start] = -1;
+    let found = -1;
+    while (qh < qt && qt < 5200) {
+      const i = q[qh++];
+      if (i === target) { found = i; break; }
+      const x = i % w, y = (i / w) | 0;
+      if (x > 0)     { const j = i - 1; if (!seen[j] && b.terrain[j]) { seen[j] = 1; from[j] = i; q[qt++] = j; } }
+      if (x < b.w - 1) { const j = i + 1; if (!seen[j] && b.terrain[j]) { seen[j] = 1; from[j] = i; q[qt++] = j; } }
+      if (y > 0)     { const j = i - w; if (!seen[j] && b.terrain[j]) { seen[j] = 1; from[j] = i; q[qt++] = j; } }
+      if (y < b.h - 1) { const j = i + w; if (!seen[j] && b.terrain[j]) { seen[j] = 1; from[j] = i; q[qt++] = j; } }
+    }
+    if (found < 0) {
+      for (let k = 0; k < qt; k++) seen[q[k]] = 0;
+      return -1;
+    }
+    let cur = found;
+    while (from[cur] !== start && from[cur] >= 0) cur = from[cur];
+    for (let k = 0; k < qt; k++) seen[q[k]] = 0;
+    return cur;
+  }
+}
+
+/* ═══════════════════════════ 粒子／音效 ═══════════════════════════ */
+function spawnPart(x, y, c, sp, life) {
+  if (G.parts.length > 420) return;
+  const a = Math.random() * TAU;
+  G.parts.push({
+    x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+    life, max: life, c, r: 0.1 + Math.random() * 0.1
+  });
+}
+function spawnBurst(x, y, c) {
+  for (let k = 0; k < 5; k++) spawnPart(x, y, c, 0.5 + Math.random() * 0.7, 0.28 + Math.random() * 0.3);
+}
+
+let actx = null, muted = false, lastFlip = 0;
+function audio() {
+  if (!actx) {
+    try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { actx = null; }
+  }
+  return actx;
+}
+function blip(freq, dur, gain, type) {
+  const a = audio();
+  if (!a) return;
+  const o = a.createOscillator(), g = a.createGain();
+  o.type = type || 'sine';
+  o.frequency.value = freq;
+  g.gain.setValueAtTime(0.0001, a.currentTime);
+  g.gain.exponentialRampToValueAtTime(gain, a.currentTime + 0.008);
+  g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + dur);
+  o.connect(g); g.connect(a.destination);
+  o.start(); o.stop(a.currentTime + dur + 0.02);
+}
+function sfxFlip() {
+  if (muted) return;
+  const now = performance.now();
+  if (now - lastFlip < 70) return;
+  lastFlip = now;
+  blip(420 + Math.random() * 120, 0.05, 0.018, 'triangle');
+}
+
+/* ═══════════════════════════ 地區 ═══════════════════════════ */
+/* 把一塊區塊的陸地切成 4~6 個「地區」：最遠點取樣挑種子，再多源 BFS 分地，
+   所以每個地區一定是連通的一整片（不會東一塊西一塊）。 */
+function buildDistricts(z, t) {
+  const w = ZW, h = ZH;
+  const land = [];
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (t[y * w + x]) land.push(y * w + x);
+  z.districts = [];
+  z.borders = null;
+  if (!land.length) return;
+  const rnd = mulberry32((z.seed ^ 0x2f9e71) >>> 0);
+  let k = 4 + ((rnd() * 3) | 0);                       // 4、5、6
+  k = Math.max(2, Math.min(k, Math.floor(land.length / 18)));
+
+  /* 1. 最遠點取樣：種子盡量散開，但保留一點隨機 */
+  const seeds = [land[(rnd() * land.length) | 0]];
+  const tmp = new Float32Array(land.length);
+  while (seeds.length < k) {
+    let bestD = -1;
+    for (let n = 0; n < land.length; n++) {
+      const c = land[n];
+      let md = 1e9;
+      for (let si = 0; si < seeds.length; si++) {
+        const sc = seeds[si];
+        const dx = (c % w) - (sc % w), dy = ((c / w) | 0) - ((sc / w) | 0);
+        const dd = dx * dx + dy * dy;
+        if (dd < md) md = dd;
+      }
+      tmp[n] = md;
+      if (md > bestD) bestD = md;
+    }
+    const pool = [];
+    for (let n = 0; n < land.length; n++) if (tmp[n] > bestD * 0.5) pool.push(land[n]);
+    seeds.push(pool.length ? pool[(rnd() * pool.length) | 0] : land[(rnd() * land.length) | 0]);
+  }
+
+  /* 2. 多源 BFS：每格歸給最快走到的種子 → 每區必連通 */
+  const lab = new Int8Array(w * h).fill(-1);
+  const q = new Int32Array(w * h);
+  let qh = 0, qt = 0;
+  for (let si = 0; si < seeds.length; si++) {
+    const c = seeds[si];
+    if (lab[c] >= 0) continue;
+    lab[c] = si; q[qt++] = c;
+  }
+  while (qh < qt) {
+    const c = q[qh++], x = c % w, y = (c / w) | 0;
+    if (x > 0)     { const n = c - 1; if (t[n] && lab[n] < 0) { lab[n] = lab[c]; q[qt++] = n; } }
+    if (x < w - 1) { const n = c + 1; if (t[n] && lab[n] < 0) { lab[n] = lab[c]; q[qt++] = n; } }
+    if (y > 0)     { const n = c - w; if (t[n] && lab[n] < 0) { lab[n] = lab[c]; q[qt++] = n; } }
+    if (y < h - 1) { const n = c + w; if (t[n] && lab[n] < 0) { lab[n] = lab[c]; q[qt++] = n; } }
+  }
+  for (const c of land) if (lab[c] < 0) {
+    const x = c % w, y = (c / w) | 0;
+    const nb = [x > 0 ? c - 1 : -1, x < w - 1 ? c + 1 : -1, y > 0 ? c - w : -1, y < h - 1 ? c + w : -1];
+    for (const n of nb) if (n >= 0 && lab[n] >= 0) { lab[c] = lab[n]; break; }
+  }
+
+  /* 3. 太小的地區併進鄰居 */
+  const minCells = Math.max(9, Math.floor(land.length * 0.085));
+  for (let guard = 0; guard < 14; guard++) {
+    const sizes = new Int32Array(seeds.length);
+    for (const c of land) if (lab[c] >= 0) sizes[lab[c]]++;
+    let small = -1;
+    for (let i = 0; i < sizes.length; i++) if (sizes[i] > 0 && sizes[i] < minCells) { small = i; break; }
+    if (small < 0) break;
+    const touch = new Int32Array(seeds.length);
+    for (const c of land) {
+      if (lab[c] !== small) continue;
+      const x = c % w, y = (c / w) | 0;
+      const nb = [x > 0 ? c - 1 : -1, x < w - 1 ? c + 1 : -1, y > 0 ? c - w : -1, y < h - 1 ? c + w : -1];
+      for (const n of nb) if (n >= 0 && lab[n] >= 0 && lab[n] !== small) touch[lab[n]]++;
+    }
+    let to = -1, best = -1;
+    for (let i = 0; i < touch.length; i++) if (touch[i] > best) { best = touch[i]; to = i; }
+    if (to < 0) break;
+    for (const c of land) if (lab[c] === small) lab[c] = to;
+  }
+
+  /* 4. 建立地區物件 + 主城 */
+  const groups = new Map();
+  for (const c of land) {
+    const l = lab[c];
+    if (!groups.has(l)) groups.set(l, []);
+    groups.get(l).push(c);
+  }
+  let id = 0;
+  for (const arr0 of groups.values()) {
+    /* 這裡的索引是「區塊內座標」，換算成世界座標才拿去塗 */
+    const arr = new Int32Array(arr0.length);
+    for (let n = 0; n < arr0.length; n++) {
+      const lc = arr0[n];
+      arr[n] = (z.y0 + ((lc / w) | 0)) * WORLD_W + (z.x0 + (lc % w));
+    }
+    /* 主城位置要用「區塊內座標」算，arr 已是世界座標 */
+    let capC = arr0[0], capScore = -1;
+    for (const c of arr0) {
+      const x = c % w, y = (c / w) | 0;
+      let sc = 0;
+      for (let dy = -3; dy <= 3; dy++) {
+        for (let dx = -3; dx <= 3; dx++) {
+          if (Math.abs(dx) + Math.abs(dy) > 3) continue;
+          const nx = x + dx, ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+          if (t[ny * w + nx]) sc++;
+        }
+      }
+      if (sc > capScore) { capScore = sc; capC = c; }
+    }
+    const cx = capC % w, cy = (capC / w) | 0;
+    const bi = biomeAt(z.x0 + cx, z.y0 + cy);
+    z.districts.push({
+      id: id++, cells: arr, size: arr.length, owner: NEUTRAL, biome: bi,
+      cap: {
+        lx: cx, ly: cy, x: z.x0 + cx + 0.5, y: z.y0 + cy + 0.5,
+        i: (z.y0 + cy) * WORLD_W + (z.x0 + cx),
+        owner: NEUTRAL, prog: 0, surr: 0, pulse: 0, flash: 0, checkT: 0,
+        biome: bi, pop: 20000, zone: z
+      }
+    });
+  }
+  for (const d of z.districts) d.cap.district = d;
+
+  /* 5. 地區邊界線 */
+  const p = new Path2D();
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const c = y * w + x;
+      if (!t[c]) continue;
+      const l = lab[c], wx = z.x0 + x, wy = z.y0 + y;
+      if (x < w - 1 && t[c + 1] && lab[c + 1] !== l) { p.moveTo(wx + 1, wy); p.lineTo(wx + 1, wy + 1); }
+      if (y < h - 1 && t[c + w] && lab[c + w] !== l) { p.moveTo(wx, wy + 1); p.lineTo(wx + 1, wy + 1); }
+    }
+  }
+  z.borders = p;
+}
+
+/* 把整塊區塊分給各路人馬（玩家主場則保留一個地區給玩家） */
+function assignOwners(z, homeIdx) {
+  const b = G.board;
+  const ds = z.districts;
+  if (!ds.length) return;
+  /* v14：統一國家的大陸 —— 所有地區都歸同一個國家，只有玩家主場例外 */
+  if (G.unified) {
+    let uni = G.rivals.find(function (r) { return !r.dead && r.owner === 1; });
+    if (!uni) {
+      uni = { owner: 1, name: '大一統帝國', dead: false, unified: true };
+      G.rivals.push(uni);
+    }
+    for (const r of G.rivals) if (r !== uni) r.dead = true;
+  }
+  const want = G.unified ? 1 : Math.min(homeIdx >= 0 ? 2 : 3, Math.max(1, ds.length - (homeIdx >= 0 ? 1 : 0)));
+
+  /* 國家是跨區塊延續的：沿用既有敵國，不夠才開新國（最多 4 國） */
+  const slots = [];
+  for (const r of G.rivals) if (!r.dead && slots.indexOf(r.owner) < 0) slots.push(r.owner);
+  if (G.unified) {
+    slots.length = 0;
+    slots.push(1);
+  } else {
+    for (let o = 1; o < COLORS.length && slots.length < want; o++) {
+      if (slots.indexOf(o) >= 0) continue;
+      G.rivals.push({ owner: o, name: makeFactionName(), dead: false });
+      slots.push(o);
+    }
+  }
+
+  let si = 0;
+  const ownerOf = [];
+  for (const d of ds) {
+    if (d.id === homeIdx) { ownerOf[d.id] = 0; continue; }
+    ownerOf[d.id] = slots.length ? slots[si++ % slots.length] : NEUTRAL;
+  }
+
+  /* 玩家開局至少拿兩個相鄰地區，否則人口與兵團會被 AI 壓死 */
+  if (homeIdx >= 0 && ds.length >= 5) {
+    const at = new Map();
+    for (const d of ds) for (const i of d.cells) at.set(i, d.id);
+    let bestD = -1, bestN = -1;
+    for (const d of ds) {
+      if (d.id === homeIdx) continue;
+      let n = 0;
+      for (const i of d.cells) {
+        const x = i % ZW, y = (i / ZW) | 0;
+        if (x > 0 && at.get(i - 1) === homeIdx) n++;
+        if (x < ZW - 1 && at.get(i + 1) === homeIdx) n++;
+        if (y > 0 && at.get(i - ZW) === homeIdx) n++;
+        if (y < ZH - 1 && at.get(i + ZW) === homeIdx) n++;
+      }
+      if (n > bestN) { bestN = n; bestD = d.id; }
+    }
+    if (bestD >= 0 && bestN > 0) ownerOf[bestD] = 0;
+  }
+
+  /* 預填：整個地區都塗成地主的顏色（玩家主場除外） */
+  for (const d of ds) {
+    const o = ownerOf[d.id];
+    d.owner = o;
+    d.cap.owner = o;
+    for (const i of d.cells) {
+      b.setOwner(i, o);
+      b.hp[i] = HP_MAX;
+      b.lock[i] = 0;
+    }
+    b.setOwner(d.cap.i, o);
+  }
+
+  /* 進場走廊：接縫往中心的路、以及接縫附近的登陸場保持中立，讓玩家走得進來 */
+  const cx = ZW / 2, cy = ZH / 2;
+  const seams = [];
+  if (zoneAt(z.gx - 1, z.gy)) seams.push([0, ZH / 2]);
+  if (zoneAt(z.gx + 1, z.gy)) seams.push([ZW, ZH / 2]);
+  if (zoneAt(z.gx, z.gy - 1)) seams.push([ZW / 2, 0]);
+  if (zoneAt(z.gx, z.gy + 1)) seams.push([ZW / 2, ZH]);
+  const clear = (lx, ly, rad) => {
+    for (let y = Math.floor(ly - rad); y <= Math.ceil(ly + rad); y++) {
+      for (let x = Math.floor(lx - rad); x <= Math.ceil(lx + rad); x++) {
+        if (x < 0 || y < 0 || x >= ZW || y >= ZH) continue;
+        if ((x - lx) * (x - lx) + (y - ly) * (y - ly) > rad * rad) continue;
+        const i = (z.y0 + y) * WORLD_W + (z.x0 + x);
+        if (!b.terrain[i]) continue;
+        if (b.owner[i] === 0) continue;
+        b.setOwner(i, NEUTRAL);
+      }
+    }
+  };
+  for (const sm of seams) {
+    clear(sm[0], sm[1], 3.2);
+    for (let t01 = 0; t01 <= 1.0001; t01 += 0.12) {
+      clear(sm[0] + (cx - sm[0]) * t01, sm[1] + (cy - sm[1]) * t01, 1.6);
+    }
+  }
+
+  /* 國家：每個佔到地的顏色都是一個國家。
+     敵國每座主城的初始兵團數 = 區塊數 × 0.5（最少 1 支、最多 10 支），玩家每座主城 1 支。
+     v8.1 回調成 v7 的數值。 */
+  const perCap = clamp(Math.round(G.zones.length * CFG.enemyArmyPerZone), 1, CFG.enemyArmyCap);
+  /* v14：統一帝國是一整片大陸的政權，兵團比一般國家多、人也比較多 */
+  const uniMul = G.unified ? 1.5 : 1;
+  for (const d of ds) {
+    const o = ownerOf[d.id];
+    if (o < 0) continue;
+    const n = o === 0 ? 1 : Math.round(perCap * uniMul);
+    const men = o === 0 ? 200
+      : Math.round(Math.min(CFG.enemyMenCap, Math.round(CFG.enemyMenBase * zoneMul())) * (G.unified ? 1.35 : 1));
+    for (let k = 0; k < n; k++) {
+      const na = addArmy(o, d.cap.x + (Math.random() - 0.5) * 0.8, d.cap.y + (Math.random() - 0.5) * 0.8, men, d.cap, z);
+      if (o === 0 && !G.newPlayerArmy) G.newPlayerArmy = na;
+    }
+  }
+
+  /* 每座主城配守軍：只在家門口攔截，不會跟著野戰兵團到處跑。
+     v8 守軍從 100 提升到 300（上限 1200 → 4800）；
+     v9 敵軍優勢未生效時回到 v7 的 100 / 上限 1200。 */
+  for (const d of ds) {
+    const o = ownerOf[d.id];
+    if (o < 0) continue;
+    const buffed = o === 0 || enemyBuff();
+    const gmen = o === 0 ? 100
+      : Math.min(buffed ? CFG.garrisonCap : 1200,
+                 Math.round((buffed ? CFG.garrisonBase : 100) * zoneMul()));
+    const gd = addArmy(o, d.cap.x + 0.9, d.cap.y + 0.9, gmen, d.cap, z);
+    gd.garrison = true;
+  }
+
+  for (const d of ds) G.caps.push(d.cap);
+  rivalSig = ''; capSig = '';
+}
+
+/* 玩家主場：離區塊中心最近的那個地區 */
+function pickHomeDistrict(z) {
+  const cx = ZW / 2, cy = ZH / 2;
+  let best = -1, bestD = 1e9;
+  for (const d of z.districts) {
+    const dd = (d.cap.lx - cx) * (d.cap.lx - cx) + (d.cap.ly - cy) * (d.cap.ly - cy);
+    const dc = (d.cells[0] % ZW - cx) * (d.cells[0] % ZW - cx);
+    if (dd < bestD) { bestD = dd; best = d.id; }
+  }
+  return best;
+}
+
+/* ═══════════════════════════ 開局 ═══════════════════════════ */
+function freeOwnerSlot() {
+  for (let o = 1; o < COLORS.length; o++) {
+    let used = false;
+    for (const r of G.rivals) if (!r.dead && r.owner === o) used = true;
+    if (!used) return o;
+  }
+  return -1;
+}
+
+function spawnRivals(z) {
+  const want = Math.min(3, 1 + Math.floor(G.zones.length / 3));
+  let placed = 0;
+  const rand = mulberry32((z.seed ^ 0x51ed270b) >>> 0);
+  for (let tries = 0; tries < 260 && placed < want; tries++) {
+    const lx = 3 + ((rand() * (ZW - 6)) | 0);
+    const ly = 3 + ((rand() * (ZH - 6)) | 0);
+    const wx = z.x0 + lx, wy = z.y0 + ly;
+    const i = wy * WORLD_W + wx;
+    if (!G.board.terrain[i]) continue;
+    let ok = true;
+    for (let dy = -1; dy <= 1 && ok; dy++)
+      for (let dx = -1; dx <= 1; dx++)
+        if (!G.board.terrain[i + dy * WORLD_W + dx]) { ok = false; break; }
+    if (!ok) continue;
+    // 不要擠在一起
+    for (const r of G.rivals) {
+      if (r.dead) continue;
+      if (Math.abs(r.unit.x - wx) + Math.abs(r.unit.y - wy) < 9) { ok = false; break; }
+    }
+    if (!ok) continue;
+    const slot = freeOwnerSlot();
+    if (slot < 0) break;
+    const u = new Unit(slot, wx + 0.5, wy + 0.5,
+      Math.min(CFG.aiSpeedMax, CFG.aiSpeedBase + CFG.aiSpeedPerZone * (G.zones.length - 1)),
+      Math.min(3, 1 + Math.floor((G.zones.length - 1) / 3)));
+    G.rivals.push({ owner: slot, unit: u, brain: new Brain(u), dead: false });
+    paintBlob(wx, wy, 2, slot);
+    placed++;
+  }
+}
+
+function paintBlob(cx, cy, r, owner) {
+  const b = G.board;
+  for (let y = cy - r; y <= cy + r; y++) {
+    for (let x = cx - r; x <= cx + r; x++) {
+      if (Math.abs(x - cx) + Math.abs(y - cy) > r) continue;
+      if (!b.isLand(x, y)) continue;
+      b.setOwner(y * b.w + x, owner);
+      b.hp[y * b.w + x] = HP_MAX;
+    }
+  }
+}
+
+function newGame(opts) {
+  const keepStage = opts && opts.stage;
+  G.stage = keepStage || 1;
+  G.unified = G.stage >= 2;
+  G.diplo = G.stage >= 2;        // v14：佔領第一片大陸之後解鎖外交
+  if (G.stage <= 1) G.wars = {};
+  G.zones.length = 0;
+  G.rivals.length = 0;
+  G.caps.length = 0;
+  G.parts.length = 0;
+  G.t = 0;
+  G.zone = 1;
+  G.kills = 0;
+  G.suffocate = 0;
+  G.openDelay = 0;
+  G.pending = false;
+  G.surge.t = 0;
+  G.surge.cd = 0;
+  G.caps.length = 0;
+  G.capSig = '';
+  G.armies.length = 0;
+  G.uidSeq = 0;
+  G.control = -1;
+  G.popT = 0;
+  G.popPaid = 0;
+  G.popPaidBy = {};
+  G.draftCd = 0;
+  G.warMode = false;
+  G.startTime = performance.now();
+  G.board = newBoard();
+
+  USED_NAMES.clear();
+  const forced = new URLSearchParams(location.search).get('seed');
+  WORLD_SEED = forced ? (parseInt(forced, 10) >>> 0)
+                      : ((Date.now() ^ ((Math.random() * 0x7fffffff) | 0)) >>> 0);
+  G.baseSeed = WORLD_SEED;
+  buildWorld();
+  const start = pickStartZone();
+  G.home = { gx: start.gx, gy: start.gy };
+  G.armies = [];
+  G.mobFlash = {};
+  G.player = { sel: null };
+  const z0 = openZone(start.gx, start.gy, true);
+  const home = z0.districts.find(d => d.owner === 0) || z0.districts[0];
+  const cx = Math.floor(home ? home.cap.x : z0.x0 + (ZW >> 1));
+  const cy = Math.floor(home ? home.cap.y : z0.y0 + (ZH >> 1));
+  paintBlob(cx, cy, 2, 0);
+  G.suffocate = 0;
+
+  G.zones.length = 1;
+  G.zones[0] = z0;
+  // 開局人口視為已結算，避免一開場就被 20000 人口換出一堆兵團
+  G.popPaid = Math.floor(playerPop());
+  for (const r of G.rivals) {
+    let pp = 0;
+    for (const c of G.caps) if (c.owner === r.owner) pp += c.pop || 0;
+    G.popPaidBy[r.owner] = Math.floor(pp);
+  }
+  if (!G.player.sel) {
+    const first = armyOf(0);
+    G.player.sel = first.length ? first[0] : null;
+  }
+  cam.cell = fitCell();
+  cam.x = G.player.sel ? G.player.sel.x : cam.x;
+  cam.y = G.player.sel ? G.player.sel.y : cam.y;
+  cam.tx = cam.x; cam.ty = cam.y;
+  cam.camPan = 0;
+  terrDirty = true;
+}
+
+function fitCell() {
+  const z = G.zones[0];
+  if (!z) return 30;
+  return clamp(Math.min(CW / (ZW + 1), (CH * 0.9) / (ZH + 1)), 7, 56);
+}
+
+/* ═══════════════════════════ 相機 ═══════════════════════════ */
+function camPanTo(x, y, dur) {
+  cam.tx = x; cam.ty = y;
+  cam.camPan = dur;
+}
+
+function clampCam() {
+  const b = G.board;
+  if (!b) return;
+  const bw = b.boxX1 - b.boxX0 + 1, bh = b.boxY1 - b.boxY0 + 1;
+  const halfW = (CW / 2) / cam.cell, halfH = (CH * 0.86 / 2) / cam.cell;
+  const minX = b.boxX0 - 1 + halfW, maxX = b.boxX1 + 2 - halfW;
+  const minY = b.boxY0 - 1 + halfH, maxY = b.boxY1 + 2 - halfH;
+  cam.x = minX > maxX ? (b.boxX0 + b.boxX1 + 1) / 2 : clamp(cam.x, minX, maxX);
+  cam.y = minY > maxY ? (b.boxY0 + b.boxY1 + 1) / 2 : clamp(cam.y, minY, maxY);
+}
+
+function zoomBy(f) {
+  const before = cam.cell;
+  cam.cell = clamp(cam.cell * f, 7, 58);
+  if (cam.cell !== before) {
+    zoomFlash = 0.25;
+    updateHUD();
+  }
+  clampCam();
+}
+let zoomFlash = 0;
+
+/* ═══════════════════════════ 更新 ═══════════════════════════ */
+function update(dt) {
+  const b = G.board;
+  if (!b) return;
+  if (G.state !== 'playing') { updateParts(dt); return; }
+  G.t += dt;
+  b.time += dt;
+  if (G.grace > 0) G.grace = Math.max(0, G.grace - dt);
+
+  if (G.surge.t > 0) {
+    G.surge.t -= dt;
+    if (G.surge.t <= 0) { G.surge.t = 0; G.surge.cd = CFG.surgeCd; }
+  } else if (G.surge.cd > 0) {
+    G.surge.cd = Math.max(0, G.surge.cd - dt);
+  }
+  if (G.draftCd > 0) G.draftCd = Math.max(0, G.draftCd - dt);   // v11 征召冷卻
+
+  // 玩家操控的兵團
+  const cu = controlledUnit();
+  if (cu) {
+    let dx = 0, dy = 0;
+    if (keys['KeyW'] || keys['ArrowUp']) dy -= 1;
+    if (keys['KeyS'] || keys['ArrowDown']) dy += 1;
+    if (keys['KeyA'] || keys['ArrowLeft']) dx -= 1;
+    if (keys['KeyD'] || keys['ArrowRight']) dx += 1;
+    if (dx || dy) moveUnit(b, cu, dx, dy, dt, G.surge.t > 0 ? CFG.surgeSpeed : 1);
+    // 玩家操控的兵團不受區塊限制，想去哪就去哪；只有 AI 操控時才被鎖在出生的區塊
+    applyBrush(b, cu, dt);
+    if (!cu.out && cu.home && Math.hypot(cu.x - cu.home.x, cu.y - cu.home.y) > 4) {
+      cu.out = true;
+      toast('兵團出擊中　·　' + Math.round(cu.men) + ' 人');
+    }
+  }
+
+  // 吃完當下的判定放在玩家塗抹之後：這一瞬間全歸玩家就算清盤
+  if (!G.pending && b.cnt[1] >= b.landCount && b.landCount > 0) {
+    G.pending = true;
+    G.openDelay = CFG.zoneOpenDelay;
+    toast('第 ' + G.zones.length + ' 塊已完全征服');
+    for (let k = 0; k < 26; k++) {
+      const z = G.zones[G.zones.length - 1];
+      spawnPart(z.x0 + Math.random() * ZW, z.y0 + Math.random() * ZH, '#9dfff0', 1.4, 0.9);
+    }
+    blip(300, 0.16, 0.05, 'sine');
+    setTimeout(function () { blip(450, 0.2, 0.045, 'sine'); }, 120);
+  }
+
+  // AI 兵團
+  updateArmies(dt, b);
+  separateArmies();          // v14：兵團佔位，不讓兩支疊在同一個點
+
+  // 快被消滅的國家會崩解
+  for (const r of G.rivals) {
+    if (r.dead) continue;
+    if (b.cnt[r.owner + 1] <= CFG.collapseAt) {
+      if (Math.random() < dt * 4) {
+        const mine = [];
+        for (let i = 0; i < b.n; i++) if (b.owner[i] === r.owner) mine.push(i);
+        if (mine.length) b.setOwner(mine[(Math.random() * mine.length) | 0], NEUTRAL);
+      }
+      for (const a of G.armies) if (a.owner === r.owner) a.stunned = true;
+    } else {
+      for (const a of G.armies) if (a.owner === r.owner) a.stunned = false;
+    }
+  }
+
+  // 窒息判定：腳下與四鄰都沒有自己的地 → 撐不住就死
+  // 兵團不再窒息：行軍本來就會踩在敵地上，改成只有「站著不動又沒有自己的地」才會消耗
+  for (const a of G.armies.slice()) {
+    if (!a.alive) continue;
+    const moved = Math.hypot(a.x - (a.lastX === undefined ? a.x : a.lastX),
+                             a.y - (a.lastY === undefined ? a.y : a.lastY));
+    a.lastX = a.x; a.lastY = a.y;
+    if (ownGround(b, a) || moved > 0.02) { a.breath = 0; }
+    else {
+      a.breath = (a.breath || 0) + dt;
+      if (a.breath > 4.0) { a.men -= 26 * dt; if (a.men <= 0.5) killArmy(a); }
+    }
+  }
+
+  // 兵團全滅但還有主城 → 從主城重整殘部
+  G.rescueT -= dt;
+  if (G.rescueT <= 0) {
+    G.rescueT = 6;
+    if (!armyOf(0).length) {
+      const caps = G.caps.filter(function (c) { return c.owner === 0; });
+      if (caps.length) {
+        const c = caps[0];
+        const a = addArmy(0, c.x, c.y, 200, c, c.zone);
+        G.player.sel = a;
+        toast('殘部重整　·　200 人');
+      } else {
+        onDefeat();
+        return;
+      }
+    }
+  }
+
+  if (G.pending) {
+    G.openDelay -= dt;
+    if (G.openDelay <= 0) {
+      G.pending = false;
+      if (!openNextZone()) {
+        if (G.stage < 2) {
+          G.state = 'stageclear';
+          renderStageClear();
+        } else {
+          G.state = 'victory';
+          renderVictory();
+        }
+      }
+    }
+  }
+
+  updateSiege(dt);
+  updatePop(dt);
+  for (const z of G.zones) if (z.reveal > 0) z.reveal -= dt / 1.5;
+  updateParts(dt);
+  updateHUD();
+}
+
+function updateParts(dt) {
+  for (let i = G.parts.length - 1; i >= 0; i--) {
+    const p = G.parts[i];
+    p.life -= dt;
+    if (p.life <= 0) { G.parts.splice(i, 1); continue; }
+    p.x += p.vx * dt; p.y += p.vy * dt;
+    p.vx *= 0.94; p.vy *= 0.94;
+  }
+}
+
+/* ═══════════════════════════ 主城 ═══════════════════════════ */
+/* 誰在圍城：回傳 owner（0 = 玩家），-1 表示雙方都在（僵持），-2 表示沒人 */
+function siegerOf(cap) {
+  let sieger = -2, bestD = 1e9;
+  const near = [];
+  for (const a of G.armies) {
+    if (!a.alive || a.stunned) continue;
+    if (a.owner === cap.owner) continue;      // 守軍站在自己的城上不算圍城
+    /* v14 外交：和平的雙方不能互相圍城 */
+    if (cap.owner === 0 && a.owner > 0 && !atWar(a.owner)) continue;
+    if (cap.owner > 0 && a.owner === 0 && !atWar(cap.owner)) continue;
+    const d = Math.hypot(a.x - cap.x, a.y - cap.y);
+    if (d > CFG.siegeRadius) continue;
+    if (a.owner === 0) { if (d < bestD) { sieger = 0; bestD = d; } }
+    else near.push([d, a.owner]);
+  }
+  near.sort((a, b) => a[0] - b[0]);
+  if (sieger === 0) {
+    return near.length ? -1 : 0;      // 玩家和 AI 同時貼著城 → 僵持
+  }
+  if (near.length) return near[0][1];
+  return -2;
+}
+
+/* 地區裡除了主城那一格以外的地，是不是全部同一方 */
+function districtSoleOwner(d) {
+  if (!d || !d.cells) return -1;      // 存檔還原時的防護：對不到地區就不要爆掉
+  let who = -2;
+  for (const i of d.cells) {
+    if (i === d.cap.i) continue;
+    const o = G.board.owner[i];
+    if (o === NEUTRAL) return -1;
+    if (who === -2) who = o;
+    else if (who !== o) return -1;
+  }
+  return who;
+}
+
+function captureDistrict(cap, owner) {
+  const b = G.board;
+  const d = cap.district;
+  if (!d) return;                     // 防護：沒有地區就不做事
+  const prev = cap.owner;
+  if (prev === owner) { cap.prog = 0; return; }
+  for (const i of d.cells) {
+    b.setOwner(i, owner);
+    b.hp[i] = HP_MAX;
+    b.lock[i] = b.time + 0.6;
+  }
+  cap.owner = owner;
+  d.owner = owner;
+  cap.prog = 0;
+  cap.surr = 0;
+  cap.flash = 1;
+  cap.pulse = 0.4;
+  for (let k = 0; k < 18; k++) spawnPart(cap.x, cap.y, COLORS[owner < 0 ? 0 : owner].css, 0.9, 0.7);
+  if (owner === 0) {
+    toast('攻下主城　·　整片地區歸你');
+    blip(520, 0.18, 0.05, 'sine');
+  } else if (prev === 0) {
+    toast('主城失守　·　這片地區被奪走');
+    blip(140, 0.35, 0.06, 'sawtooth');
+  } else if (owner > 0) {
+    toast((rivalName(owner)) + ' 攻下了一座主城');
+  }
+  // 城破時，附近殘餘的敵方兵團直接併入佔領者的人口
+  if (prev >= 0) {
+    let absorbed = 0;
+    for (const a of G.armies.slice()) {
+      if (!a.alive || a.owner !== prev) continue;
+      if (Math.hypot(a.x - cap.x, a.y - cap.y) > 7) continue;
+      absorbed += a.men;
+      killArmy(a, true);
+    }
+    if (absorbed > 0) {
+      cap.pop = (cap.pop || 0) + absorbed;
+      if (owner === 0) toast('俘獲 ' + Math.round(absorbed) + ' 人　·　併入人口');
+    }
+  }
+  /* v10：攻下主城拿到的這批人口（含俘虜），立刻算進兵力轉化 */
+  if (owner === 0) convertPlayerPop();
+
+  if (prev > 0 && b.cnt[prev + 1] === 0) {
+    const r = G.rivals.find(x => x.owner === prev && !x.dead);
+    if (r) killRival(r);
+  }
+  rivalSig = ''; capSig = '';
+}
+
+/* v8：主城裡有多少守方兵力（含守軍與回防的野戰兵團） */
+function capDefenders(cap, rad) {
+  let men = 0;
+  const r = rad || 5.5;
+  for (const a of G.armies) {
+    if (!a.alive || a.owner !== cap.owner) continue;
+    if (Math.hypot(a.x - cap.x, a.y - cap.y) <= r) men += a.men;
+  }
+  return men;
+}
+
+/* v8 城防：圍城者站在城下會被持續消耗。
+   傷害用「自身兵力的百分比」而不是固定值 —— 固定值對 6 萬人的大兵團等於不存在，
+   只有百分比傷害才咬得動堆疊起來的兵團。 */
+function capitalFire(cap, dt) {
+  if (cap.owner > 0 && !enemyBuff()) return;   // v9：敵軍優勢未生效時不開火
+  const def = capDefenders(cap, 5.5);
+  const pow = clamp(def / CFG.capFirePow, 0.35, CFG.capFireMax);
+  const rate = CFG.capFireRate * pow;
+  for (const a of G.armies.slice()) {
+    if (!a.alive || a.owner === cap.owner) continue;
+    if (Math.hypot(a.x - cap.x, a.y - cap.y) > CFG.siegeRadius + 0.7) continue;
+    a.men -= a.men * rate * dt;
+    if (Math.random() < dt * 4) spawnPart(a.x, a.y, '#ffb86b', 0.55, 0.45);
+    if (a.men <= 0.5) killArmy(a);
+  }
+}
+
+/* v8 全民皆兵：敵方主城被圍時會從人口抽兵補進守軍，逼玩家真的把城打下來。
+   每次圍城有次數上限（capBuyMax），否則守軍補得比殺得快，城會變成打不完的牆。 */
+function capBuyTroops(cap, dt) {
+  if (cap.owner <= 0 || !enemyBuff()) return;   // v9：敵軍優勢未生效時不抽兵
+  cap.buyT = (cap.buyT || 0) - dt;
+  if (cap.buyT > 0) return;
+  cap.buyT = CFG.capBuyT;
+  if ((cap.buys || 0) >= CFG.capBuyMax) return;
+  if ((cap.pop || 0) < 8000) return;
+  if (capDefenders(cap, 3.2) >= CFG.capBuyGuard) return;
+  const take = Math.min(CFG.capBuyMen, (cap.pop || 0) - 4000);
+  if (take < 100) return;
+  let g = null;
+  for (const a of G.armies) {
+    if (a.alive && a.owner === cap.owner && a.garrison && a.home === cap) { g = a; break; }
+  }
+  cap.pop -= take;
+  cap.buys = (cap.buys || 0) + 1;
+  if (g) {
+    g.men += take;
+    g.g0 = Math.max(g.g0 || 0, g.men);
+  } else {
+    const na = addArmy(cap.owner, cap.x + 0.6, cap.y + 0.6, take, cap, cap.zone);
+    na.garrison = true;
+    na.g0 = take;
+  }
+  for (let k = 0; k < 8; k++) spawnPart(cap.x, cap.y, '#ffe08a', 0.8, 0.6);
+}
+
+function updateSiege(dt) {
+  const b = G.board;
+  for (const cap of G.caps) {
+    if (!cap.district) continue;      // 沒有對到地區的主城不參與圍城判定
+    if (cap.flash > 0) cap.flash = Math.max(0, cap.flash - dt * 3);
+    if (cap.pulse > 0) cap.pulse = Math.max(0, cap.pulse - dt);
+    const who = siegerOf(cap);
+    let sieging = false;
+    if (who >= 0 && who !== cap.owner) {
+      const need = who === 0 ? CFG.siegeTime : CFG.siegeAiTime;
+      const bm = BIOMES[cap.biome || 0].siege;
+      /* v8 守城優勢：城裡守軍越多，圍城進度越慢（守軍 1400 → 砍半，最低 0.28 倍） */
+      const defMen = capDefenders(cap);
+      const defMul = (cap.owner > 0 && !enemyBuff())
+        ? 1
+        : Math.max(CFG.siegeDefFloor, 1 / (1 + defMen / CFG.siegeDefSlow));
+      cap.prog = Math.min(1, cap.prog + (dt / need) * bm * defMul);
+      cap.pulse = 0.5;
+      sieging = true;
+      capitalFire(cap, dt);
+      capBuyTroops(cap, dt);
+      if (cap.prog >= 1) { captureDistrict(cap, who); continue; }
+    } else if (who === -1) {
+      sieging = true;    // 僵持：進度不動也不衰減
+      capitalFire(cap, dt);
+    }
+    if (!sieging) {
+      cap.prog = Math.max(0, cap.prog - dt * CFG.siegeDecay);
+      /* v9：抽兵額度不隨圍城中斷而重置 —— 每座城整場只抽一次 */
+    }
+
+    /* 自動歸降：地區其他格全被同一方吃光 */
+    cap.checkT -= dt;
+    if (cap.checkT <= 0) {
+      cap.checkT = 0.25;
+      const sole = districtSoleOwner(cap.district);
+      if (sole >= 0 && sole !== cap.owner) cap.surr += 0.25;
+      else cap.surr = Math.max(0, cap.surr - 0.5);
+      if (cap.surr >= CFG.surrenderTime) { captureDistrict(cap, sole); }
+    }
+  }
+}
+
+function rivalName(owner) {
+  for (const r of G.rivals) if (r.owner === owner && r.name) return r.name;
+  return COLORS[owner] ? COLORS[owner].name : '某個勢力';
+}
+
+function killRival(r) {
+  if (r.dead) return;
+  r.dead = true;
+  const b = G.board;
+  for (const a of G.armies.slice()) if (a.owner === r.owner) killArmy(a, true);
+  let sx = 0, sy = 0, sn = 0;
+  for (let i = 0; i < b.n; i++) {
+    if (b.owner[i] === r.owner) {
+      if (sn === 0) { sx = i % b.w; sy = (i / b.w) | 0; }
+      sn++;
+      b.setOwner(i, NEUTRAL);
+    }
+  }
+  G.kills++;
+  if (sn) spawnBurst(sx, sy, COLORS[r.owner].css);
+  toast((r.name || COLORS[r.owner].name) + ' 被吞沒了');
+  if (!muted) blip(180, 0.25, 0.05, 'sawtooth');
+  const k = G.rivals.indexOf(r);
+  if (k >= 0) G.rivals.splice(k, 1);
+  rivalSig = '';
+}
+
+function onDefeat() {
+  G.state = 'defeat';
+  renderDefeat();
+}
+
+/* ═══════════════════════════ 縮放／視窗 ═══════════════════════════ */
+function resize() {
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  CW = window.innerWidth;
+  CH = window.innerHeight;
+  canvas.width = Math.floor(CW * DPR);
+  canvas.height = Math.floor(CH * DPR);
+  canvas.style.width = CW + 'px';
+  canvas.style.height = CH + 'px';
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  clampCam();
+}
+window.addEventListener('resize', resize);
+
+/* ═══════════════════════════ 繪圖 ═══════════════════════════ */
+function rebuildTerritory() {
+  const b = G.board;
+  if (!b || !terrU32) return;
+  const w = b.w, owner = b.owner;
+  for (let i = 0; i < b.n; i++) {
+    const o = owner[i];
+    if (o < 0) { terrU32[i] = 0; continue; }
+    const px = i % w, py = (i / w) | 0;
+    const c = COLORS[o], P = BIOMES[biomeAt(px, py)];
+    const mx = 0.26;
+    const a2 = 146 + ((hash2i(px, py, 3) * 47) | 0);
+    terrU32[i] = packRGBA(
+      (c.r * (1 - mx) + P.mid[0] * mx) | 0,
+      (c.g * (1 - mx) + P.mid[1] * mx) | 0,
+      (c.b * (1 - mx) + P.mid[2] * mx) | 0, a2);
+  }
+  terrCtx.putImageData(terrImg, 0, 0);
+  terrDirty = false;
+}
+
+function rebuildOutlines() {
+  const b = G.board;
+  if (!b || b.boxX1 < b.boxX0) return;
+  const w = b.w, owner = b.owner;
+  const paths = COLORS.map(() => new Path2D());
+  for (let y = b.boxY0; y <= b.boxY1; y++) {
+    for (let x = b.boxX0; x <= b.boxX1; x++) {
+      const i = y * w + x;
+      const o = owner[i];
+      if (o < 0) continue;
+      const p = paths[o];
+      if (y === 0 || owner[i - w] !== o) { p.moveTo(x, y); p.lineTo(x + 1, y); }
+      if (y === b.h - 1 || owner[i + w] !== o) { p.moveTo(x, y + 1); p.lineTo(x + 1, y + 1); }
+      if (x === 0 || owner[i - 1] !== o) { p.moveTo(x, y); p.lineTo(x, y + 1); }
+      if (x === w - 1 || owner[i + 1] !== o) { p.moveTo(x + 1, y); p.lineTo(x + 1, y + 1); }
+    }
+  }
+  terrPaths = paths;
+}
+
+function render() {
+  const b = G.board;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  // 海
+  const g = ctx.createRadialGradient(CW * 0.5, CH * 0.42, 60, CW * 0.5, CH * 0.5, Math.max(CW, CH) * 0.78);
+  g.addColorStop(0, '#123043');
+  g.addColorStop(0.55, '#0b1c29');
+  g.addColorStop(1, '#050c13');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, CW, CH);
+  if (!b) return;
+
+  const cs = cam.cell;
+  const ox = CW / 2 - cam.x * cs;
+  const oy = CH * 0.5 - cam.y * cs;
+
+  const x0 = Math.max(0, Math.floor(-ox / cs) - 1);
+  const y0 = Math.max(0, Math.floor(-oy / cs) - 1);
+  const x1 = Math.min(b.w, Math.ceil((CW - ox) / cs) + 1);
+  const y1 = Math.min(b.h, Math.ceil((CH - oy) / cs) + 1);
+  const sw = x1 - x0, sh = y1 - y0;
+
+  ctx.imageSmoothingEnabled = false;
+  if (sw > 0 && sh > 0) {
+    ctx.drawImage(terrainCv, x0, y0, sw, sh, ox + x0 * cs, oy + y0 * cs, sw * cs, sh * cs);
+    if (shadowCv) ctx.drawImage(shadowCv, x0, y0, sw, sh, ox + x0 * cs, oy + y0 * cs, sw * cs, sh * cs);
+
+    if (terrDirty) rebuildTerritory();
+    ctx.globalAlpha = 0.68;
+    ctx.drawImage(terrCv, x0, y0, sw, sh, ox + x0 * cs, oy + y0 * cs, sw * cs, sh * cs);
+    ctx.globalAlpha = 1;
+  }
+
+  ctx.save();
+  ctx.translate(ox, oy);
+  ctx.scale(cs, cs);
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+
+  if (coastPath) {
+    ctx.strokeStyle = 'rgba(186,226,232,.30)';
+    ctx.lineWidth = 1.6 / cs;
+    ctx.stroke(coastPath);
+  }
+  if (terrPaths) {
+    for (let o = 0; o < COLORS.length; o++) {
+      const p = terrPaths[o];
+      if (!p) continue;
+      ctx.lineWidth = 1.9 / cs;
+      ctx.strokeStyle = OUTLINE[o];
+      ctx.stroke(p);
+      if (o === 0) {
+        ctx.lineWidth = 4.0 / cs;
+        ctx.strokeStyle = GLOW;
+        ctx.stroke(p);
+      }
+    }
+  }
+
+  // 新區塊的浮現光環
+  for (const z of G.zones) {
+    if (z.reveal <= 0) continue;
+    const a = clamp(z.reveal, 0, 1);
+    const t = 1 - a;
+    const cx = z.x0 + z.w / 2, cy = z.y0 + z.h / 2;
+    const rr = Math.max(z.w, z.h) * (0.12 + t * 0.62);
+    const grd = ctx.createRadialGradient(cx, cy, rr * 0.55, cx, cy, rr);
+    grd.addColorStop(0, 'rgba(140,255,238,0)');
+    grd.addColorStop(0.75, 'rgba(150,255,242,' + (a * 0.30).toFixed(3) + ')');
+    grd.addColorStop(1, 'rgba(120,230,255,0)');
+    ctx.fillStyle = grd;
+    ctx.beginPath();
+    ctx.arc(cx, cy, rr, 0, TAU);
+    ctx.fill();
+  }
+
+  // 粒子
+  for (const p of G.parts) {
+    const a = p.life / p.max;
+    ctx.globalAlpha = a * 0.9;
+    ctx.fillStyle = p.c;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r * (0.5 + a * 0.7), 0, TAU);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // 兵團
+  for (const a of G.armies) if (a.alive) drawArmy(a, cs);
+  if (G.player && G.player.sel && G.player.sel.alive) {
+    const a = G.player.sel;
+    ctx.strokeStyle = 'rgba(255,224,138,.9)';
+    ctx.lineWidth = 1.6 / cs;
+    ctx.beginPath();
+    ctx.arc(a.x, a.y, 0.8, 0, TAU);
+    ctx.stroke();
+  }
+
+  // 地區邊界（縮太小就不畫，免得糊成一團）
+  if (cs >= 12) {
+    ctx.strokeStyle = 'rgba(6,16,22,.32)';
+    ctx.lineWidth = 1 / cs;
+    ctx.setLineDash([2.5 / cs, 3.2 / cs]);
+    for (const z of G.zones) if (z.borders) ctx.stroke(z.borders);
+    ctx.setLineDash([]);
+  }
+  // 主城
+  for (const cap of G.caps) drawCapital(cap, cs);
+
+  ctx.restore();
+}
+
+function drawArmy(a, cs) {
+  const t = performance.now() / 1000;
+  const bob = Math.sin(t * 3 + (a.phase || 0)) * 0.04;
+  // 影子
+  ctx.fillStyle = 'rgba(0,0,0,.30)';
+  ctx.beginPath();
+  ctx.ellipse(a.x, a.y + 0.42, 0.44, 0.2, 0, 0, TAU);
+  ctx.fill();
+  // 三個小人
+  ctx.fillStyle = COLORS[a.owner] ? COLORS[a.owner].css : '#cfd8dd';
+  for (let i = 0; i < 3; i++) {
+    const dx = (i - 1) * 0.23;
+    const dy = (i === 1 ? -0.1 : 0) + bob;
+    ctx.beginPath();
+    ctx.arc(a.x + dx, a.y - 0.10 + dy, 0.135, 0, TAU);
+    ctx.fill();
+  }
+  // 旗竿與旗子
+  ctx.strokeStyle = 'rgba(10,26,30,.72)';
+  ctx.lineWidth = 1.3 / cs;
+  ctx.beginPath();
+  ctx.moveTo(a.x + 0.32, a.y + 0.3);
+  ctx.lineTo(a.x + 0.32, a.y - 0.66);
+  ctx.stroke();
+  ctx.fillStyle = a.owner === 0 ? '#ffe08a' : 'rgba(255,255,255,.72)';
+  ctx.beginPath();
+  ctx.moveTo(a.x + 0.32, a.y - 0.66);
+  ctx.lineTo(a.x + 0.76, a.y - 0.50);
+  ctx.lineTo(a.x + 0.32, a.y - 0.34);
+  ctx.closePath();
+  ctx.fill();
+  // 人數
+  if (cs >= 14) {
+    const txt = String(Math.round(a.men));
+    ctx.font = '700 0.32px ui-sans-serif,system-ui,-apple-system,sans-serif';
+    ctx.textAlign = 'center';
+    // 底色藥丸，壓在敵方領土上也讀得到
+    const w = ctx.measureText(txt).width;
+    ctx.fillStyle = a.owner === 0 ? 'rgba(6,32,30,.72)' : 'rgba(10,18,24,.66)';
+    const py = a.y - 1.06;
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(a.x - w / 2 - 0.13, py - 0.24, w + 0.26, 0.42, 0.16);
+    else ctx.rect(a.x - w / 2 - 0.13, py - 0.24, w + 0.26, 0.42);
+    ctx.fill();
+    ctx.lineWidth = 0.055;
+    ctx.strokeStyle = 'rgba(6,16,20,.5)';
+    ctx.strokeText(txt, a.x, py + 0.06);
+    ctx.fillStyle = a.owner === 0 ? '#e9fffb' : 'rgba(255,244,220,.95)';
+    ctx.fillText(txt, a.x, py + 0.06);
+    ctx.textAlign = 'left';
+  }
+}
+
+function drawUnit(u, col, cs, isPlayer) {
+  const r = 0.42;
+  const t = performance.now() / 1000;
+  // 陰影
+  ctx.fillStyle = 'rgba(0,0,0,.28)';
+  ctx.beginPath();
+  ctx.ellipse(u.x, u.y + 0.36, r * 0.9, r * 0.42, 0, 0, TAU);
+  ctx.fill();
+
+  // 危險（腳下沒地）
+  if (u.breath > 0) {
+    const k = clamp(u.breath / CFG.suffocateTime, 0, 1);
+    ctx.strokeStyle = 'rgba(255,90,90,' + (0.35 + k * 0.6).toFixed(3) + ')';
+    ctx.lineWidth = 2.4 / cs + 0.06;
+    ctx.beginPath();
+    ctx.arc(u.x, u.y, r + 0.16 + k * 0.18, 0, TAU);
+    ctx.stroke();
+  }
+
+  // 身體
+  const bob = Math.sin(t * 2.4 + u.phase) * 0.03;
+  ctx.fillStyle = col.css;
+  ctx.beginPath();
+  ctx.arc(u.x, u.y + bob, r, 0, TAU);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,.35)';
+  ctx.lineWidth = 1.4 / cs;
+  ctx.stroke();
+
+  // 眼睛
+  const ex = u.fx * 0.13, ey = u.fy * 0.11;
+  ctx.fillStyle = 'rgba(6,16,20,.82)';
+  ctx.beginPath();
+  ctx.arc(u.x - 0.14 + ex, u.y - 0.05 + ey, 0.075, 0, TAU);
+  ctx.arc(u.x + 0.14 + ex, u.y - 0.05 + ey, 0.075, 0, TAU);
+  ctx.fill();
+
+  if (isPlayer) {
+    const ready = G.surge.cd <= 0 && G.surge.t <= 0;
+    const p = G.surge.t > 0 ? 1 : (ready ? 1 : 1 - G.surge.cd / CFG.surgeCd);
+    ctx.strokeStyle = 'rgba(46,230,200,.16)';
+    ctx.lineWidth = 2.2 / cs + 0.05;
+    ctx.beginPath(); ctx.arc(u.x, u.y, r + 0.3, 0, TAU); ctx.stroke();
+    ctx.strokeStyle = G.surge.t > 0 ? '#dcfffa' : (ready ? 'rgba(150,255,238,.95)' : 'rgba(90,200,190,.7)');
+    ctx.lineWidth = 2.6 / cs + 0.05;
+    ctx.beginPath();
+    ctx.arc(u.x, u.y, r + 0.3, -Math.PI / 2, -Math.PI / 2 + TAU * p);
+    ctx.stroke();
+    if (ready) {
+      ctx.globalAlpha = 0.25 + Math.sin(t * 5) * 0.12;
+      ctx.strokeStyle = '#9dfff0';
+      ctx.lineWidth = 5 / cs;
+      ctx.beginPath(); ctx.arc(u.x, u.y, r + 0.3, 0, TAU); ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+  }
+}
+
+function drawCapital(cap, cs) {
+  const halfPx = Math.max(9, Math.min(26, cs * 0.62));
+  const hw = halfPx / cs;
+  const o = cap.owner;
+  const col = o >= 0 ? COLORS[o] : { css: '#8fa3ad', r: 143, g: 163, b: 173 };
+  const x = cap.x, y = cap.y;
+  const top = y - hw * 0.9, bot = y + hw * 0.9;
+
+  // 圍城進度：先畫底環再畫進度，遠看也讀得出來
+  const ringR = hw * 1.75;
+  if (cap.prog > 0.002) {
+    ctx.strokeStyle = 'rgba(8,18,24,.42)';
+    ctx.lineWidth = 3.2 / cs;
+    ctx.beginPath();
+    ctx.arc(x, y, ringR, 0, TAU);
+    ctx.stroke();
+  }
+
+  // 台座
+  ctx.fillStyle = 'rgba(0,0,0,.30)';
+  ctx.beginPath();
+  ctx.ellipse(x, bot + hw * 0.18, hw * 1.22, hw * 0.42, 0, 0, TAU);
+  ctx.fill();
+
+  // 城體（比領土色再深一點，免得跟自己的地混在一起）
+  const cr = Math.round(col.r * 0.82), cg2 = Math.round(col.g * 0.82), cb2 = Math.round(col.b * 0.82);
+  const bodyCss = 'rgb(' + cr + ',' + cg2 + ',' + cb2 + ')';
+  ctx.fillStyle = bodyCss;
+  ctx.beginPath();
+  ctx.rect(x - hw, top, hw * 2, bot - top);
+  const bw = hw * 0.46;
+  for (let k = 0; k < 3; k++) ctx.rect(x - hw + k * (hw * 0.77), top - bw * 0.9, bw * 0.62, bw * 0.9);
+  ctx.fill();
+
+  // 屋頂陰影（上緣壓暗，立體感）
+  ctx.fillStyle = 'rgba(0,0,0,.16)';
+  ctx.fillRect(x - hw, top, hw * 2, hw * 0.34);
+
+  // 門
+  ctx.fillStyle = 'rgba(6,16,20,.66)';
+  ctx.beginPath();
+  ctx.moveTo(x - hw * 0.26, bot);
+  ctx.lineTo(x - hw * 0.26, bot - hw * 0.5);
+  ctx.arc(x, bot - hw * 0.5, hw * 0.26, Math.PI, 0);
+  ctx.lineTo(x + hw * 0.26, bot);
+  ctx.closePath();
+  ctx.fill();
+
+  // 外框：深底 + 淡亮邊，任何底色上都看得出來
+  ctx.strokeStyle = 'rgba(8,18,24,.55)';
+  ctx.lineWidth = 1.4 / cs;
+  ctx.strokeRect(x - hw, top, hw * 2, bot - top);
+
+  // 旗子
+  ctx.strokeStyle = 'rgba(8,18,24,.55)';
+  ctx.lineWidth = 1.1 / cs;
+  ctx.beginPath();
+  ctx.moveTo(x, top - bw * 0.9);
+  ctx.lineTo(x, top - bw * 0.9 - hw * 0.5);
+  ctx.stroke();
+  ctx.fillStyle = bodyCss;
+  ctx.beginPath();
+  ctx.moveTo(x, top - bw * 0.9 - hw * 0.5);
+  ctx.lineTo(x + hw * 0.44, top - bw * 0.9 - hw * 0.34);
+  ctx.lineTo(x, top - bw * 0.9 - hw * 0.18);
+  ctx.closePath();
+  ctx.fill();
+
+  // 圍城進度弧
+  if (cap.prog > 0.002) {
+    ctx.strokeStyle = 'rgba(255,104,96,.95)';
+    ctx.lineWidth = 3.2 / cs;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.arc(x, y, ringR, -Math.PI / 2, -Math.PI / 2 + TAU * clamp(cap.prog, 0, 1));
+    ctx.stroke();
+    ctx.lineCap = 'butt';
+  }
+
+  // 被圍城時的脈動
+  if (cap.pulse > 0) {
+    ctx.strokeStyle = 'rgba(255,150,150,' + (cap.pulse * 0.8).toFixed(3) + ')';
+    ctx.lineWidth = 1.5 / cs;
+    ctx.beginPath();
+    ctx.arc(x, y, hw * (1.25 + (0.5 - cap.pulse) * 3.0), 0, TAU);
+    ctx.stroke();
+  }
+
+  // 易主閃光
+  if (cap.flash > 0) {
+    ctx.globalAlpha = cap.flash * 0.8;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(x, y, hw * 2.0, 0, TAU);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+}
+
+/* ═══════════════════════════ HUD ═══════════════════════════ */
+const zoneNumEl = document.getElementById('zoneNum');
+const zoneSizeEl = document.getElementById('zoneSize');
+const ownBarEl = document.getElementById('ownBar');
+const ownPctEl = document.getElementById('ownPct');
+const leftCellsEl = document.getElementById('leftCells');
+const zoneCountEl = document.getElementById('zoneCount');
+const zoomPctEl = document.getElementById('zoomPct');
+const capCountEl = document.getElementById('capCount');
+const distCountEl = document.getElementById('distCount');
+const rivalsEl = document.getElementById('rivals');
+const aggLabelEl = document.getElementById('aggLabel');
+const popCountEl = document.getElementById('popCount');
+const armyCountEl = document.getElementById('armyCount');
+const warChipEl = document.getElementById('warChip');
+const powMulEl = document.getElementById('powMul');
+const menCountEl = document.getElementById('menCount');
+const garCountEl = document.getElementById('garCount');
+const armyRowsEl = document.getElementById('armyRows');
+const armyToggleEl = document.getElementById('armyToggle');
+const draftCdEl = document.getElementById('draftCd');
+const dipChipEl = document.getElementById('dipChip');
+const surgeFillEl = document.getElementById('surgeFill');
+const surgeChipEl = surgeFillEl ? surgeFillEl.closest('.surge-chip') : null;
+const hudEl = document.getElementById('hud');
+
+let rivalSig = '';
+let capSig = '';
+let armySig = '';
+
+/* v10：兵力顯示用（1.2k / 34.5k / 1.2M） */
+function fmtMen(n) {
+  n = Math.round(n);
+  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+  if (n >= 10000) return (n / 1000).toFixed(1) + 'k';
+  return String(n);
+}
+
+/* v10：玩家兵團清單（HUD 展開後才畫）。
+   結構（有哪些兵團、誰被選中）變了才重繪；只有兵力在跳動時就只改文字，
+   否則戰鬥中每幀重建 innerHTML 會讓點擊很不穩。 */
+function renderArmyList() {
+  if (!armyRowsEl || !armyToggleEl || !armyToggleEl.classList.contains('open')) return;
+  const list = armyOf(0);
+  const sel = G.player && G.player.sel;
+  let sig = '';
+  for (const a of list) sig += a.uid + (a === sel ? '*' : '') + (a.garrison ? 'g' : '') + '|';
+  if (sig !== armySig) {
+    armySig = sig;
+    if (!list.length) {
+      armyRowsEl.innerHTML = '<div class="army-item empty">目前沒有兵團</div>';
+      return;
+    }
+    let h = '';
+    list.forEach(function (a, i) {
+      h += '<div class="army-item' + (a === sel ? ' on' : '') + '" data-army="' + a.uid + '">' +
+        '<i class="dot" style="background:' + (a.garrison ? '#ffc142' : '#2ee6c8') + '"></i>' +
+        '<span class="nm">兵團 ' + (i + 1) + '</span>' +
+        '<span class="men">' + fmtMen(a.men) + '</span>' +
+        (a.garrison ? '<span class="tag">守軍</span>' : '') +
+        (a === sel ? '<span class="tag">操控中</span>' : '') +
+        '</div>';
+    });
+    armyRowsEl.innerHTML = h;
+    return;
+  }
+  const menEls = armyRowsEl.querySelectorAll('.army-item .men');
+  for (let i = 0; i < menEls.length && i < list.length; i++) {
+    menEls[i].textContent = fmtMen(list[i].men);
+  }
+}
+
+function updateHUD() {
+  const b = G.board;
+  if (!b) return;
+  const won = b.cnt[1];
+  const land = Math.max(1, b.landCount);
+  const pct = won / land;
+  ownBarEl.style.width = (pct * 100).toFixed(1) + '%';
+  ownPctEl.textContent = Math.round(pct * 100) + '%';
+  leftCellsEl.textContent = String(Math.max(0, b.landCount - won));
+  zoneNumEl.textContent = String(G.zones.length);
+  zoneSizeEl.textContent = ZW + ' × ' + ZH;
+  zoneCountEl.textContent = String(G.zones.length);
+  zoomPctEl.textContent = Math.round(cam.cell / Math.max(1, fitCell()) * 100) + '%';
+  let mine = 0, total = 0, dists = 0;
+  for (const c of G.caps) { total++; if (c.owner === 0) mine++; }
+  for (const z of G.zones) if (z.districts) dists += z.districts.length;
+  capCountEl.textContent = mine + ' / ' + total;
+  distCountEl.textContent = String(dists);
+  aggLabelEl.textContent = AGGRO_LABEL[G.aggression];
+  if (powMulEl) {
+    powMulEl.textContent = enemyBuff() ? '×' + zoneMul().toFixed(1) : '休眠';
+    powMulEl.style.opacity = enemyBuff() ? '1' : '.45';
+  }
+  if (draftCdEl) {
+    const pct = Math.round((G.draftPct || CFG.draftPct) * 100);
+    draftCdEl.textContent = (G.draftCd > 0 ? Math.ceil(G.draftCd) + 's' : '就緒') + ' · ' + pct + '%';
+  }
+  if (dipChipEl) dipChipEl.style.display = G.diplo ? '' : 'none';
+  const pop = playerPop();
+  if (popCountEl) popCountEl.textContent = fmtMen(pop);
+  const myAll = armyOf(0);
+  let myField = 0;
+  for (const a of myAll) if (!a.garrison) myField++;
+  if (armyCountEl) armyCountEl.textContent = myField + ' / ' + G.armyCap;
+  if (garCountEl) garCountEl.textContent = String(myAll.length - myField);
+  if (menCountEl) menCountEl.textContent = fmtMen(playerMen());
+  renderArmyList();
+  if (warChipEl) warChipEl.style.display = G.warMode ? '' : 'none';
+
+  /* 敵國欄位：兵力與兵團數每幀都可能變，所以只重建結構，數值用 textContent 更新 */
+  const alive = G.rivals.filter(r => !r.dead);
+  const sig = alive.map(r => r.owner).join(',');
+  if (sig !== rivalSig) {
+    rivalSig = sig;
+    let html = '';
+    for (const r of alive) {
+      html += '<div class="rival">' +
+        '<i class="dot" style="background:' + COLORS[r.owner].css + ';color:' + COLORS[r.owner].css + '"></i>' +
+        '<span class="rname">' + (r.name || COLORS[r.owner].name) + '</span>' +
+        '<span class="rbar"><i style="width:0%;background:' + COLORS[r.owner].css + '"></i></span>' +
+        '<span class="rpct">0%</span>' +
+        '<span class="rmeta"></span></div>';
+    }
+    rivalsEl.innerHTML = html;
+  }
+  const bars = rivalsEl.querySelectorAll('.rbar i');
+  const pcts = rivalsEl.querySelectorAll('.rpct');
+  const metas = rivalsEl.querySelectorAll('.rmeta');
+  alive.forEach((r, k) => {
+    const p = Math.round(b.cnt[r.owner + 1] / land * 100);
+    if (bars[k]) bars[k].style.width = p + '%';
+    if (pcts[k]) pcts[k].textContent = p + '%';
+    if (metas[k]) {
+      let n = 0, men = 0;
+      for (const a of G.armies) if (a.alive && a.owner === r.owner) { n++; men += a.men; }
+      metas[k].textContent = n + ' 支兵團　·　' + fmtMen(men) + ' 兵' +
+        (G.diplo ? (atWar(r.owner) ? '　·　交戰' : '　·　和平') : '');
+    }
+  });
+
+  const cdLeft = G.surge.t > 0 ? 1 : 1 - G.surge.cd / CFG.surgeCd;
+  surgeFillEl.style.width = (clamp(cdLeft, 0, 1) * 100).toFixed(0) + '%';
+  if (surgeChipEl) {
+    if (G.surge.t > 0) surgeChipEl.classList.add('hot');
+    else surgeChipEl.classList.remove('hot');
+  }
+}
+
+let toastTimer = 0;
+const toastEl = document.getElementById('toast');
+function toast(msg) {
+  toastEl.textContent = msg;
+  toastEl.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function () { toastEl.classList.remove('on'); }, 2200);
+}
+
+/* ═══════════════════════════ 覆蓋層 ═══════════════════════════ */
+const overlayEl = document.getElementById('overlay');
+function setOverlay(html) {
+  overlayEl.innerHTML = html;
+  overlayEl.classList.add('on');
+}
+function hideOverlay() {
+  overlayEl.classList.remove('on');
+  setTimeout(function () { if (!overlayEl.classList.contains('on')) overlayEl.innerHTML = ''; }, 340);
+}
+
+function aggSeg() {
+  let h = '<div class="seg">';
+  for (const k of ['weak', 'mid', 'strong']) {
+    h += '<button data-agg="' + k + '" class="' + (G.aggression === k ? 'on' : '') + '">' +
+         AGGRO_LABEL[k] + '</button>';
+  }
+  return h + '</div>';
+}
+
+function armyCapSeg() {
+  return '<div class="capnum">' +
+    '<input id="capInput" type="number" min="1" max="100" step="1" value="' + G.armyCap + '">' +
+    '<span>支（1–100）</span>' +
+    '</div>';
+}
+
+function draftSeg() {
+  const pct = Math.round((G.draftPct || 0.01) * 100);
+  return '<div class="capnum">' +
+    '<input id="draftInput" type="number" min="1" max="20" step="1" value="' + pct + '">' +
+    '<span>%（1–20）</span>' +
+    '</div>';
+}
+
+function rallySeg() {
+  return '<div class="seg">' +
+    '<button data-rallymode="near" class="' + (G.rallyMode !== 'all' ? 'on' : '') + '">最近的部隊</button>' +
+    '<button data-rallymode="all" class="' + (G.rallyMode === 'all' ? 'on' : '') + '">全國軍隊</button>' +
+    '</div>';
+}
+function rallyCountSeg() {
+  return '<div class="capnum">' +
+    '<input id="rallyInput" type="number" min="1" max="20" step="1" value="' + G.rallyCount + '">' +
+    '<span>支（1–20，全國模式不計）</span>' +
+    '</div>';
+}
+
+function buffSeg() {
+  return '<div class="seg">' +
+    '<button data-buff="on" class="' + (G.buffOn ? 'on' : '') + '">開啟</button>' +
+    '<button data-buff="off" class="' + (G.buffOn ? '' : 'on') + '">關閉</button>' +
+    '</div>';
+}
+
+function renderMenu() {
+  let best = 0, bestZone = 0;
+  try {
+    best = parseInt(localStorage.getItem('territory_best_zone') || '0', 10) || 0;
+    bestZone = parseInt(localStorage.getItem('territory_best_cells') || '0', 10) || 0;
+  } catch (e) {}
+  setOverlay(
+    '<div class="card">' +
+      '<div class="eyebrow">ENDLESS TERRITORY</div>' +
+      '<h1>無盡領土</h1>' +
+      '<p class="lead">你操控的不是一個人，是一支兵團。走過的土地就是你的。<br>' +
+      '吃下整塊大陸，下一塊領土就會浮現，一圈一圈往外擴，沒有終點。<br>' +
+      '站上敵方主城旁 5 秒就能拿下整片地區；吃光它其他格子，主城自己也會投降。<br>' +
+      '敵國也有兵團，會在交界處攔截你、也會回城救主城。<br>' +
+      '人口每 30 秒成長，每 1 萬人成軍；<b>Q</b>/<b>E</b> 換兵團，<b>+</b> 補兵，ESC 調兵團上限。<br>' +
+      '<b>兵團打光了，就由下一支接管；全部打光就輸了。</b></p>' +
+      '<div class="agg-title">AI 對你領地的攻擊性</div>' +
+      aggSeg() +
+      '<div class="agg-note">不論設定為何，AI 對彼此的領地永遠維持強攻擊。</div>' +
+      '<button class="primary" data-act="start">開始遊戲</button>' +
+      (hasSave() ? '<button class="ghost" data-act="loadmenu">讀取存檔</button>' : '') +
+      '<div class="foot">' +
+        (best > 0 ? '最佳紀錄：第 ' + best + ' 塊　·　' : '') +
+        'WASD 移動 · SPACE 衝鋒 · Q/E 換兵團 · + 補兵 · ESC 暫停</div>' +
+    '</div>'
+  );
+}
+
+function renderPause() {
+  setOverlay(
+    '<div class="card">' +
+      '<div class="eyebrow">PAUSED</div>' +
+      '<h1>暫停</h1>' +
+      '<p class="lead">已經吃到第 <b>' + G.zones.length + '</b> 塊，' +
+      '佔下 <b>' + G.board.cnt[1] + '</b> 格。</p>' +
+      '<div class="agg-title">AI 對你領地的攻擊性</div>' +
+      aggSeg() +
+      '<div class="agg-note">切換後立刻生效。</div>' +
+      '<div class="agg-title">敵軍優勢（守城 · 集結）</div>' +
+      buffSeg() +
+      '<div class="agg-note">奪取 ' + (CFG.lateGate + 1) + ' 塊之後才生效，關掉就完全不套用。</div>' +
+      '<div class="agg-title">兵團數上限（超過就併入既有兵團）</div>' +
+      armyCapSeg() +
+      '<div class="agg-note">目前 ' + armyOf(0).length + ' 支 · 按 Q / E 切換，+ 補兵。</div>' +
+      '<div class="agg-title">緊急征召（每按一次抽調的人口比例）</div>' +
+      draftSeg() +
+      '<div class="agg-note">M 啟動 · 冷卻 ' + CFG.draftCd + ' 秒 · 比例越高抽到的兵越多。</div>' +
+      '<div class="agg-title">O 集結（要調動哪些兵團）</div>' +
+      rallySeg() +
+      rallyCountSeg() +
+      '<div class="agg-note">最近的部隊：只叫離你最近的那幾支；全國軍隊：所有野戰兵團都來。</div>' +
+      '<div class="agg-title">存檔（最多 3 個）</div>' +
+      saveSlotsSeg() +
+      '<button class="primary" data-act="resume">繼續</button>' +
+      '<button class="ghost" data-act="restart">重新開始</button>' +
+      '<div class="foot">世界種子 #' + WORLD_SEED + ' · ESC 繼續 · N 靜音</div>' +
+    '</div>'
+  );
+}
+
+function renderDefeat() {
+  const secs = Math.round((performance.now() - G.startTime) / 1000);
+  saveBest();
+  setOverlay(
+    '<div class="card">' +
+      '<div class="eyebrow">SWALLOWED</div>' +
+      '<h1>你被吞沒了</h1>' +
+      '<p class="lead">腳下再沒有一寸屬於你的土地。</p>' +
+      '<div class="stat-row">' +
+        '<div class="stat"><div class="k">征服區塊</div><div class="v">' + G.zones.length + '</div></div>' +
+        '<div class="stat"><div class="k">佔領格數</div><div class="v">' + G.board.cnt[1] + '</div></div>' +
+        '<div class="stat"><div class="k">存活</div><div class="v">' + secs + '<small>秒</small></div></div>' +
+      '</div>' +
+      '<button class="primary" data-act="restart">再來一次</button>' +
+      '<div class="foot">WASD 移動 · SPACE 衝鋒 · Q/E 換兵團 · + 補兵</div>' +
+    '</div>'
+  );
+}
+
+/* v14：佔領整片大陸後的結算 —— 通往第二片大陸 */
+function renderStageClear() {
+  const secs = Math.round((performance.now() - G.startTime) / 1000);
+  setOverlay(
+    '<div class="card">' +
+      '<div class="eyebrow">A NEW CONTINENT</div>' +
+      '<h1>整片大陸都是你的</h1>' +
+      '<p class="lead">最後一塊土地插上了你的旗。<br>' +
+      '海的那一邊還有一片大陸 —— 那裡只有一個<b>大一統帝國</b>，整片土地都在它手裡。<br>' +
+      '渡海之後會解鎖<b>外交</b>：可以對它宣戰，也可以先談和平。</p>' +
+      '<div class="stat-row">' +
+        '<div class="stat"><div class="k">征服區塊</div><div class="v">' + G.zones.length + '</div></div>' +
+        '<div class="stat"><div class="k">佔領格數</div><div class="v">' + G.board.cnt[1] + '</div></div>' +
+        '<div class="stat"><div class="k">耗時</div><div class="v">' + secs + '<small>秒</small></div></div>' +
+      '</div>' +
+      '<button class="primary" data-act="nextstage">渡海前往新大陸</button>' +
+      '<button class="ghost" data-act="restart">留在這片大陸重新開始</button>' +
+    '</div>'
+  );
+}
+
+/* v14：外交面板 */
+function renderDiplo() {
+  let rows = '';
+  for (const r of G.rivals) {
+    if (r.dead) continue;
+    const w = atWar(r.owner);
+    rows += '<div class="dip-row">' +
+      '<i class="dot" style="background:' + COLORS[r.owner].css + '"></i>' +
+      '<span class="nm">' + (r.name || COLORS[r.owner].name) + '</span>' +
+      '<span class="st' + (w ? ' war' : '') + '">' + (w ? '交戰中' : '和平') + '</span>' +
+      '<button class="ghost mini" data-owner="' + r.owner + '" data-war="' + (w ? '0' : '1') + '">' +
+        (w ? '談和平' : '宣戰') + '</button>' +
+      '</div>';
+  }
+  setOverlay(
+    '<div class="card">' +
+      '<div class="eyebrow">DIPLOMACY</div>' +
+      '<h1>外交</h1>' +
+      '<p class="lead">和平期間雙方<b>不會交戰</b>，也<b>不能奪取</b>對方的土地與主城。<br>' +
+      '宣戰之後恢復正常攻防。</p>' +
+      (rows || '<p class="lead">目前沒有可以交涉的國家。</p>') +
+      '<button class="primary" data-act="closediplo">關閉</button>' +
+    '</div>'
+  );
+}
+
+function renderVictory() {
+  const secs = Math.round((performance.now() - G.startTime) / 1000);
+  saveBest();
+  setOverlay(
+    '<div class="card">' +
+      '<div class="eyebrow">EVERYTHING IS YOURS</div>' +
+      '<h1>整片海都是你的</h1>' +
+      '<p class="lead">你把這個世界能長出來的每一塊土地都吃完了。</p>' +
+      '<div class="stat-row">' +
+        '<div class="stat"><div class="k">征服區塊</div><div class="v">' + G.zones.length + '</div></div>' +
+        '<div class="stat"><div class="k">佔領格數</div><div class="v">' + G.board.cnt[1] + '</div></div>' +
+        '<div class="stat"><div class="k">存活</div><div class="v">' + secs + '<small>秒</small></div></div>' +
+      '</div>' +
+      '<button class="primary" data-act="restart">再來一次</button>' +
+    '</div>'
+  );
+}
+
+function saveBest() {
+  try {
+    const z = parseInt(localStorage.getItem('territory_best_zone') || '0', 10) || 0;
+    if (G.zones.length > z) localStorage.setItem('territory_best_zone', String(G.zones.length));
+    const c = parseInt(localStorage.getItem('territory_best_cells') || '0', 10) || 0;
+    if (G.board && G.board.cnt[1] > c) localStorage.setItem('territory_best_cells', String(G.board.cnt[1]));
+  } catch (e) {}
+}
+
+/* ═══════════════════════════ v14 存檔 ═══════════════════════════
+   三個存檔槽，放在 localStorage。
+   只存「玩的狀態」：seed + 已開區塊 + 每格歸屬 + 主城 + 兵團 + 各項設定；
+   地形由 seed 重建（同一個 seed 一定長出同一片大陸）。 */
+const SAVE_SLOTS = 3;
+
+function slotKey(n) { return 'territory_save_' + n; }
+
+function bytesToB64(bytes) {
+  let s = '';
+  const CH = 0x8000;
+  for (let i = 0; i < bytes.length; i += CH) {
+    s += String.fromCharCode.apply(null, bytes.subarray(i, i + CH));
+  }
+  return btoa(s);
+}
+function b64ToBytes(str) {
+  const bin = atob(str);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+function slotInfo(n) {
+  try {
+    const raw = localStorage.getItem(slotKey(n));
+    if (!raw) return '';
+    const d = JSON.parse(raw);
+    const dt = new Date(d.ts || 0);
+    const p2 = function (v) { return v < 10 ? '0' + v : '' + v; };
+    return '第 ' + (d.stage || 1) + ' 片 · ' + ((d.zones && d.zones.length) || 0) + ' 塊 · ' +
+      p2(dt.getMonth() + 1) + '/' + p2(dt.getDate()) + ' ' + p2(dt.getHours()) + ':' + p2(dt.getMinutes());
+  } catch (e) { return ''; }
+}
+
+function hasSave() {
+  for (let i = 1; i <= SAVE_SLOTS; i++) if (slotInfo(i)) return true;
+  return false;
+}
+
+function saveToSlot(n) {
+  try {
+    const b = G.board;
+    const data = {
+      v: 14,
+      ts: Date.now(),
+      seed: WORLD_SEED >>> 0,
+      baseSeed: G.baseSeed >>> 0,
+      stage: G.stage, unified: !!G.unified, diplo: !!G.diplo, wars: G.wars || {},
+      t: G.t, zone: G.zone, kills: G.kills, aggression: G.aggression,
+      armyCap: G.armyCap, buffOn: G.buffOn, rallyMode: G.rallyMode, rallyCount: G.rallyCount,
+      draftPct: G.draftPct, draftCd: G.draftCd,
+      popPaid: G.popPaid, popPaidBy: G.popPaidBy, grace: G.grace, warMode: G.warMode,
+      home: G.home,
+      owner: bytesToB64(new Uint8Array(b.owner.buffer.slice(0))),
+      hp: bytesToB64(new Uint8Array(b.hp.buffer.slice(0))),
+      zones: G.zones.map(function (z) {
+        return {
+          gx: z.gx, gy: z.gy, x0: z.x0, y0: z.y0, w: z.w, h: z.h,
+          land: z.land, reveal: z.reveal, seed: z.seed,
+          districts: z.districts.map(function (d) {
+            /* cells 在遊戲裡可能是 typed array，JSON 會把它變成物件 → 一定要轉成真陣列 */
+            return { id: d.id, cells: Array.from(d.cells), size: d.size, owner: d.owner, biome: d.biome };
+          })
+        };
+      }),
+      caps: G.caps.map(function (c) {
+        return {
+          lx: c.lx, ly: c.ly, x: c.x, y: c.y, i: c.i,
+          owner: c.owner, prog: c.prog, surr: c.surr, biome: c.biome, pop: c.pop,
+          zi: G.zones.indexOf(c.zone), did: c.district ? c.district.id : -1
+        };
+      }),
+      rivals: G.rivals.map(function (r) {
+        return { owner: r.owner, name: r.name, dead: !!r.dead, unified: !!r.unified };
+      }),
+      armies: G.armies.map(function (a) {
+        return {
+          owner: a.owner, x: a.x, y: a.y, men: a.men, speed: a.speed, brush: a.brush,
+          garrison: !!a.garrison, rally: a.rally || 0, returning: !!a.returning,
+          uid: a.uid, hi: a.home ? G.caps.indexOf(a.home) : -1
+        };
+      }),
+      sel: G.player && G.player.sel ? G.player.sel.uid : 0,
+      uidSeq: G.uidSeq
+    };
+    localStorage.setItem(slotKey(n), JSON.stringify(data));
+    toast('已存到存檔 ' + n);
+    return true;
+  } catch (e) {
+    toast('存檔失敗：' + ((e && e.message) || '空間不足'));
+    return false;
+  }
+}
+
+/* 依 seed 重建地形，再把存檔的歸屬與主城疊回去 */
+function loadFromSlot(n) {
+  let d = null;
+  try {
+    const raw = localStorage.getItem(slotKey(n));
+    if (!raw) { toast('存檔 ' + n + ' 是空的'); return false; }
+    d = JSON.parse(raw);
+  } catch (e) {
+    toast('存檔損毀');
+    return false;
+  }
+  if (!d || d.v !== 14) { toast('存檔版本不符'); return false; }
+  try {
+    WORLD_SEED = d.seed >>> 0;
+    G.baseSeed = d.baseSeed >>> 0;
+    G.stage = d.stage || 1;
+    G.unified = !!d.unified;
+    G.diplo = !!d.diplo;
+    G.wars = d.wars || {};
+
+    buildWorld();                       // 重建 worldLand / zoneOpenGrid / biomes
+    G.board = newBoard();
+    const b = G.board;
+
+    /* 1) 先把地形貼回去（只貼已開放的區塊），順便重畫地形畫布 */
+    G.zones.length = 0;
+    G.caps.length = 0;
+    G.rivals.length = 0;
+    G.armies.length = 0;
+    for (const z of d.zones) {
+      const zo = {
+        gx: z.gx, gy: z.gy, x0: z.x0, y0: z.y0, w: z.w, h: z.h,
+        land: z.land, open: true, reveal: z.reveal, seed: z.seed,
+        districts: [], borders: null
+      };
+      G.zones.push(zo);
+      zoneOpenGrid[zo.gy * WCOL + zo.gx] = 1;
+      const img = terrainCtx.createImageData(zo.w, zo.h);
+      const u32 = new Uint32Array(img.data.buffer);
+      const tz = new Uint8Array(zo.w * zo.h);
+      for (let y = 0; y < zo.h; y++) {
+        for (let x = 0; x < zo.w; x++) {
+          const wx = zo.x0 + x, wy = zo.y0 + y;
+          const i = wy * WORLD_W + wx;
+          const land = worldLand[i];
+          b.terrain[i] = land ? 1 : 0;
+          if (!land) continue;
+          tz[y * zo.w + x] = 1;
+          u32[y * zo.w + x] = terrainColorAt(wx, wy);
+          b.growBox(wx, wy);
+        }
+      }
+      terrainCtx.putImageData(img, zo.x0, zo.y0);
+      buildZoneCoast(tz, { x0: zo.x0, y0: zo.y0 });   // 海岸線重繪
+    }
+
+    /* 2) 歸屬與耐久 */
+    const ownerB = b64ToBytes(d.owner);
+    b.owner.set(new Int8Array(ownerB.buffer, 0, b.n));
+    const hpB = b64ToBytes(d.hp);
+    if (hpB.length >= b.n * 4) b.hp.set(new Float32Array(hpB.buffer, 0, b.n));
+
+    /* 3) 重算計數 */
+    b.cnt.fill(0);
+    b.landCount = 0;
+    for (let i = 0; i < b.n; i++) {
+      if (!b.terrain[i]) continue;
+      b.landCount++;
+      b.cnt[b.owner[i] + 1]++;
+    }
+    b.dirty = true;
+
+    /* 4) 主城 → 地區 → 區塊（重建互相引用） */
+    for (const c of d.caps) {
+      G.caps.push({
+        lx: c.lx, ly: c.ly, x: c.x, y: c.y, i: c.i,
+        owner: c.owner, prog: c.prog || 0, surr: c.surr || 0,
+        pulse: 0, flash: 0, checkT: 0, biome: c.biome,
+        pop: c.pop, zone: null, district: null
+      });
+    }
+    let capCursor = 0;
+    for (const z of d.zones) {
+      const zo = G.zones[d.zones.indexOf(z)];
+      for (const dd of z.districts) {
+        /* 依序配對：G.caps 的推入順序就是「區塊順序 → 地區順序」，
+           跟存檔時存下來的順序一致，比用 id 比對可靠。 */
+        const cap = G.caps[capCursor];
+        const dist = { id: dd.id, cells: Array.from(dd.cells), size: dd.size, owner: dd.owner, biome: dd.biome, cap: cap };
+        if (cap) { cap.district = dist; cap.zone = zo; }
+        zo.districts.push(dist);
+        capCursor++;
+      }
+    }
+
+    /* 5) 國家與兵團 */
+    for (const r of d.rivals) G.rivals.push({ owner: r.owner, name: r.name, dead: !!r.dead, unified: !!r.unified });
+    for (const a of d.armies) {
+      const u = new Unit(a.owner, a.x, a.y, a.speed || 6, a.brush || 3);
+      u.kind = 'army';
+      u.men = a.men;
+      u.uid = a.uid;
+      u.home = a.hi >= 0 ? (G.caps[a.hi] || null) : null;
+      u.zone = u.home ? u.home.zone : null;
+      u.out = false;
+      u.retarget = 0;
+      u.tx = a.x; u.ty = a.y;
+      u.think = 0;
+      u.goal = null;
+      u.garrison = !!a.garrison;
+      u.rally = a.rally || 0;
+      u.returning = !!a.returning;
+      G.armies.push(u);
+    }
+    G.uidSeq = d.uidSeq || (G.armies.length + 1);
+    G.player = { sel: null };
+    if (d.sel) G.player.sel = G.armies.find(function (x) { return x.uid === d.sel; }) || null;
+    if (!G.player.sel && armyOf(0).length) G.player.sel = armyOf(0)[0];
+
+    /* 6) 各種計數與設定 */
+    G.t = d.t || 0;
+    G.zone = d.zone || 1;
+    G.kills = d.kills || 0;
+    G.aggression = d.aggression || 'mid';
+    G.armyCap = d.armyCap || 6;
+    G.buffOn = d.buffOn !== false;
+    G.rallyMode = d.rallyMode || 'near';
+    G.rallyCount = d.rallyCount || 3;
+    G.draftPct = d.draftPct || CFG.draftPct;
+    G.draftCd = d.draftCd || 0;
+    G.popPaid = d.popPaid || 0;
+    G.popPaidBy = d.popPaidBy || {};
+    G.grace = d.grace || 0;
+    G.warMode = !!d.warMode;
+    G.home = d.home || { gx: 0, gy: 0 };
+    G.pending = false;
+    G.openDelay = 0;
+    G.surge.t = 0;
+    G.surge.cd = 0;
+    G.suffocate = 0;
+    G.rescueT = 0;
+    G.popT = 0;
+    G.parts.length = 0;
+    G.newPlayerArmy = null;
+
+    terrDirty = true;
+    paintShadow();
+    rebuildTerritory();
+    rebuildOutlines();
+    rivalSig = ''; capSig = ''; armySig = '';
+
+    cam.cell = fitCell();
+    const cu = controlledUnit();
+    if (cu) { cam.x = cu.x; cam.y = cu.y; }
+    cam.tx = cam.x; cam.ty = cam.y;
+    cam.camPan = 0;
+
+    hideOverlay();
+    hudEl.classList.add('on');
+    G.state = 'playing';
+    updateHUD();
+    toast('讀取存檔 ' + n + '　·　第 ' + G.stage + ' 片大陸');
+    return true;
+  } catch (e) {
+    console.error(e);
+    toast('讀取失敗：' + ((e && e.message) || '未知錯誤'));
+    return false;
+  }
+}
+
+function saveSlotsSeg() {
+  let h = '';
+  for (let i = 1; i <= SAVE_SLOTS; i++) {
+    const info = slotInfo(i);
+    h += '<div class="dip-row">' +
+      '<span class="nm">存檔 ' + i + (info ? '　' + info : '　<span style="opacity:.45">空</span>') + '</span>' +
+      '<button class="ghost mini" data-save="' + i + '">存</button>' +
+      '<button class="ghost mini" data-load="' + i + '"' + (info ? '' : ' disabled') + '>讀</button>' +
+      '</div>';
+  }
+  return h;
+}
+
+function renderLoadMenu() {
+  setOverlay(
+    '<div class="card">' +
+      '<div class="eyebrow">SAVES</div>' +
+      '<h1>選擇存檔</h1>' +
+      '<p class="lead">讀取後會直接回到存檔當時的大陸與戰況。</p>' +
+      saveSlotsSeg() +
+      '<button class="ghost" data-act="backmenu">返回</button>' +
+    '</div>'
+  );
+}
+
+/* ═══════════════════════════ 遊戲流程 ═══════════════════════════ */
+function startGame() {
+  hideOverlay();
+  hudEl.classList.add('on');
+  newGame();
+  G.state = 'playing';
+  toast('吃掉整塊大陸　·　下一塊就會出現');
+}
+
+function pauseGame() {
+  if (G.state !== 'playing') return;
+  G.state = 'paused';
+  renderPause();
+}
+
+function resumeGame() {
+  if (G.state !== 'paused') return;
+  hideOverlay();
+  G.state = 'playing';
+}
+
+function restart() {
+  hideOverlay();
+  startGame();
+}
+
+function aggroMul() {
+  if (G.aggression === 'strong') return 1.5;
+  if (G.aggression === 'weak') return 0.55;
+  return 1;
+}
+
+function setAggression(level) {
+  G.aggression = level;
+  updateHUD();
+}
+
+function activateSurge() {
+  if (G.state !== 'playing') return;
+  if (G.surge.t > 0 || G.surge.cd > 0) return;
+  const u = controlledUnit();
+  if (!u) return;
+  G.surge.t = CFG.surgeDur;
+  for (let k = 0; k < 16; k++) spawnPart(u.x, u.y, '#9dfff0', 0.34, 0.85);
+  if (actx && !muted) {
+    blip(520, 0.11, 0.05, 'square');
+    setTimeout(function () { blip(780, 0.13, 0.045, 'square'); }, 70);
+  }
+}
+
+/* ═══════════════════════════ 輸入 ═══════════════════════════ */
+const keys = Object.create(null);
+
+window.addEventListener('keydown', function (e) {
+  const code = e.code;
+  if (code === 'Escape') {
+    if (G.state === 'playing') pauseGame();
+    else if (G.state === 'paused') resumeGame();
+    return;
+  }
+  if (code === 'KeyM' && !e.repeat) {
+    if (G.state === 'playing') emergencyDraft();
+    return;
+  }
+  if (code === 'KeyN' && !e.repeat) {
+    muted = !muted;
+    toast(muted ? '已靜音' : '已開啟音效');
+    return;
+  }
+  if (code === 'Space' && !e.repeat && G.state === 'playing') { activateSurge(); e.preventDefault(); return; }
+  if ((code === 'Equal' || code === 'NumpadAdd') && !e.repeat) {
+    if (G.state === 'playing') reinforceArmy(100);
+    else zoomBy(1.16);
+    e.preventDefault(); return;
+  }
+  if ((code === 'Minus' || code === 'NumpadSubtract') && !e.repeat) { zoomBy(1 / 1.16); e.preventDefault(); return; }
+  if (code === 'BracketLeft' && !e.repeat) { zoomBy(1 / 1.16); e.preventDefault(); return; }
+  if (code === 'BracketRight' && !e.repeat) { zoomBy(1.16); e.preventDefault(); return; }
+  if ((code === 'KeyF') && !e.repeat) {
+    cam.cell = fitCell();
+    const cu = controlledUnit();
+    if (cu) { cam.x = cu.x; cam.y = cu.y; }
+    updateHUD(); return;
+  }
+  if (code === 'KeyO' && !e.repeat) {
+    if (G.state === 'playing') rallyArmies();
+    return;
+  }
+  if (code === 'KeyP' && !e.repeat) {
+    if (G.state === 'playing') returnArmies();
+    return;
+  }
+  if (code === 'KeyQ' && !e.repeat) {
+    if (G.state === 'playing') selectArmy(1);
+    return;
+  }
+  if (code === 'KeyE' && !e.repeat) {
+    if (G.state === 'playing') selectArmy(-1);
+    return;
+  }
+  if ((code === 'Enter' || code === 'Space') && !e.repeat) {
+    if (G.state === 'menu') startGame();
+    else if (G.state === 'stageclear') startStage(2);
+    else if (G.state === 'defeat' || G.state === 'victory') restart();
+    return;
+  }
+  if (code.startsWith('Arrow')) e.preventDefault();
+  keys[code] = true;
+});
+window.addEventListener('keyup', function (e) { keys[e.code] = false; });
+window.addEventListener('blur', function () { for (const k in keys) keys[k] = false; });
+
+/* v10：兵團清單 —— 點兵團切換操控對象、點標題列展開／收合 */
+document.addEventListener('click', function (e) {
+  const t = e.target;
+  if (!t || !t.closest) return;
+  const item = t.closest('[data-army]');
+  if (item) {
+    const uid = parseInt(item.dataset.army, 10);
+    const a = G.armies.find(function (x) { return x.alive && x.owner === 0 && x.uid === uid; });
+    if (a && G.state === 'playing' && G.player) {
+      G.player.sel = a;
+      G.surge.t = 0;
+      camPanTo(a.x, a.y, 0.45);
+      toast('兵團 ' + fmtMen(a.men) + ' 人' + (a.garrison ? '　·　守軍' : ''));
+      updateHUD();
+    }
+    return;
+  }
+  const tg = t.closest('#armyToggle');
+  if (tg) {
+    const open = tg.classList.toggle('open');
+    if (armyRowsEl) armyRowsEl.classList.toggle('open', open);
+    armySig = '';
+    updateHUD();
+    return;
+  }
+  if (t.closest('#dipChip')) {
+    if (G.diplo) renderDiplo();
+    return;
+  }
+});
+
+canvas.addEventListener('wheel', function (e) {
+  e.preventDefault();
+  zoomBy(Math.exp(-e.deltaY * 0.0014));
+}, { passive: false });
+
+overlayEl.addEventListener('input', function (e) {
+  if (!e.target) return;
+  if (e.target.id === 'capInput') {
+    const v = parseInt(e.target.value, 10);
+    if (isNaN(v)) return;
+    G.armyCap = Math.max(1, Math.min(100, v));
+    updateHUD();
+    return;
+  }
+  if (e.target.id === 'draftInput') {
+    const v = parseInt(e.target.value, 10);
+    if (isNaN(v)) return;
+    G.draftPct = Math.max(1, Math.min(20, v)) / 100;
+    updateHUD();
+    return;
+  }
+  if (e.target.id === 'rallyInput') {
+    const v = parseInt(e.target.value, 10);
+    if (isNaN(v)) return;
+    G.rallyCount = Math.max(1, Math.min(20, v));
+  }
+});
+
+overlayEl.addEventListener('click', function (e) {
+  const t = e.target;
+  if (!t || !t.dataset) return;
+  if (t.dataset.armycap) {
+    G.armyCap = parseInt(t.dataset.armycap, 10) || 6;
+    const seg = t.parentElement;
+    if (seg) for (const b of seg.children) b.classList.toggle('on', b === t);
+    updateHUD();
+    return;
+  }
+  if (t.dataset.agg) {
+    setAggression(t.dataset.agg);
+    const seg = t.parentElement;
+    if (seg) for (const b of seg.children) b.classList.toggle('on', b === t);
+    return;
+  }
+  if (t.dataset.buff) {
+    G.buffOn = t.dataset.buff === 'on';
+    const seg = t.parentElement;
+    if (seg) for (const b of seg.children) b.classList.toggle('on', b === t);
+    updateHUD();
+    return;
+  }
+  if (t.dataset.rallymode) {
+    G.rallyMode = t.dataset.rallymode === 'all' ? 'all' : 'near';
+    const seg = t.parentElement;
+    if (seg) for (const b of seg.children) b.classList.toggle('on', b === t);
+    return;
+  }
+  if (t.dataset.war !== undefined && t.dataset.owner) {
+    setWar(parseInt(t.dataset.owner, 10), t.dataset.war === '1');
+    renderDiplo();
+    return;
+  }
+  if (t.dataset.save) {
+    const n = parseInt(t.dataset.save, 10);
+    if (saveToSlot(n)) { if (G.state === 'paused') renderPause(); }
+    return;
+  }
+  if (t.dataset.load) {
+    loadFromSlot(parseInt(t.dataset.load, 10));
+    return;
+  }
+  const act = t.dataset.act;
+  if (act === 'start') startGame();
+  else if (act === 'resume') resumeGame();
+  else if (act === 'restart') restart();
+  else if (act === 'nextstage') startStage(2);
+  else if (act === 'closediplo') hideOverlay();
+  else if (act === 'loadmenu') renderLoadMenu();
+  else if (act === 'backmenu') renderMenu();
+});
+
+/* ═══════════════════════════ 主迴圈 ═══════════════════════════ */
+let last = performance.now();
+function loop(now) {
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+
+  if (G.state === 'playing' || G.state === 'paused') {
+    // 相機
+    if (G.state === 'playing') {
+      if (cam.camPan > 0) {
+        cam.camPan -= dt;
+        cam.x = lerp(cam.x, cam.tx, 1 - Math.pow(0.001, dt));
+        cam.y = lerp(cam.y, cam.ty, 1 - Math.pow(0.001, dt));
+      } else if (G.player && controlledUnit()) {
+        const u = controlledUnit();
+        const k = 1 - Math.pow(0.0001, dt * (CFG.camFollow / 6.5));
+        if (!u) { clampCam(); }
+        cam.x = lerp(cam.x, u.x, k);
+        cam.y = lerp(cam.y, u.y, k);
+      }
+    }
+    clampCam();
+    if (G.state === 'playing') update(dt);
+    else updateParts(dt);
+  }
+
+  if (G.board) {
+    if (G.board.dirty) {
+      G.board.dirty = false;
+      terrDirty = true;
+      if (now - lastOutline > 110) { rebuildOutlines(); lastOutline = now; }
+    }
+    if (now - lastOutline > 140) { rebuildOutlines(); lastOutline = now; }
+  }
+
+  render();
+  requestAnimationFrame(loop);
+}
+
+/* ═══════════════════════════ 啟動 ═══════════════════════════ */
+resize();
+G.board = newBoard();
+newGame();
+G.state = 'menu';
+renderMenu();
+requestAnimationFrame(loop);
+
+setInterval(function () {
+  if (G.state !== 'menu' || !G.board) return;
+  for (const a of G.armies) {
+    if (!a.alive) continue;
+    armyThink(a, 1 / 30, G.board);
+    G.board.time += 1 / 30;
+  }
+  terrDirty = true;
+  rebuildOutlines();
+  updateHUD();
+}, 33);
+
+// 讓開場畫面就有點動靜
+setTimeout(function () {
+  if (G.state === 'menu' && G.player && G.player.sel) {
+    cam.x = G.player.sel.x; cam.y = G.player.sel.y;
+    cam.cell = fitCell();
+  }
+}, 80);
+
+/* 測試鉤子 */
+window.__T = {
+  get G() { return G; },
+  get cam() { return cam; },
+  get terrainCv() { return terrainCv; }, districtSoleOwner, siegerOf, update, render, startGame, restart, openNextZone, openZone, applyBrush, keys, CFG, zoomBy, fitCell,
+  activateSurge, setAggression, AGGRO, ZW, ZH, BIOMES, biomeAt, playerPop, spawnArmy,
+  selectArmy, reinforceArmy, armyOf, killArmy, playerUnit: controlledUnit,
+  pauseGame, resumeGame, resolveCombat, armyThink, zoneMul, capMul, homeArmor, focusMul, capDefenders, enemyBuff,
+  rallyArmies, returnArmies, homePoint, playerMen, ownerMen, convertPlayerPop, fmtMen, renderArmyList, captureDistrict, emergencyDraft,
+  separateArmies, atWar, setWar, startStage, saveToSlot, loadFromSlot, slotInfo, renderDiplo, renderStageClear,
+  get armies() { return G.armies; },
+  get board() { return G.board; },
+  get zones() { return G.zones; }
+};
+
+if (location.search.indexOf('auto') >= 0) setTimeout(startGame, 60);
+})();
+</script>
+</body>
+</html>
