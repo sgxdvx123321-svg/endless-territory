@@ -2,9 +2,9 @@
 
 # 無盡領土 · Endless Territory
 
-**一個單檔 HTML 的即時戰略遊戲 · 37 個版本全開源**
+**一個單檔 HTML 的即時戰略遊戲 · 43 個版本全開源**
 
-[▶ 線上玩最新版](https://sgxdvx123321-svg.github.io/endless-territory/versions/territory-v38.html) · [🗂 版本畫廊](https://sgxdvx123321-svg.github.io/endless-territory/) · [MIT](LICENSE)
+[▶ 線上玩最新版](https://sgxdvx123321-svg.github.io/endless-territory/versions/territory-v44.html) · [🗂 版本畫廊](https://sgxdvx123321-svg.github.io/endless-territory/) · [MIT](LICENSE)
 
 </div>
 
@@ -12,9 +12,9 @@
 
 ## 開場：整條開發線，直接扔給社區
 
-這是一款**用 AI 造出來的 HTML 戰爭遊戲**。從一個 `.html` 檔案開始，一路迭代到 v38，中間沒有編譯、沒有框架、沒有 `npm install`，雙擊就能玩。
+這是一款**用 AI 造出來的 HTML 戰爭遊戲**。從一個 `.html` 檔案開始，一路迭代到 v44，中間沒有編譯、沒有框架、沒有 `npm install`，雙擊就能玩。
 
-現在把整條迭代線（**v2 → v38，37 個可玩快照**）原封不動扔上社區：**隨便下載、隨便玩、隨便改、隨便拿去用**。
+現在把整條迭代線（**v2 → v44，43 個可玩快照**）原封不動扔上社區：**隨便下載、隨便玩、隨便改、隨便拿去用**。
 沒有授權陷阱、沒有「僅供學習」，你覺得哪裡難玩就改哪裡，改完歡迎發 PR 或自己開分支。
 
 也希望有更多人一起發揮創意，讓這個遊戲變得更耐玩——多加一個兵種、換一套經濟、寫一種新的 AI、把地圖生成整個重做，都算。
@@ -23,7 +23,7 @@
 
 - **整理代碼**。現在是 7000 行單檔，`<style>`、`<canvas>`、遊戲邏輯全塞在一起。歡迎幫我拆成正常的模組結構（`src/world.js`、`src/army.js`、`src/render.js`…），或是加上 TypeScript 型別。
 - **做出 HTML 以外的版本**。桌面版（Electron / Tauri）、手機 App、Unity / Godot / PixiJS 重製，甚至是原生的獨立遊戲，都歡迎——素材與數值都在源碼裡，可以直接搬。
-- **把這堆版本史整理成能維護的東西**。37 個快照現在只是並排躺著，如果你看得出哪條分支該留、哪段該砍，非常歡迎。
+- **把這堆版本史整理成能維護的東西**。43 個快照現在只是並排躺著，如果你看得出哪條分支該留、哪段該砍，非常歡迎。
 
 > 這個專案沒有任何商業目的，純粹是一個「AI + 一個人 + 兩天」能走到哪裡的實驗。玩得開心就好。
 
@@ -48,9 +48,9 @@
 
 | 方式 | 連結 |
 |---|---|
-| ▶ **線上直接玩最新版 v38** | <https://sgxdvx123321-svg.github.io/endless-territory/versions/territory-v38.html> |
+| ▶ **線上直接玩最新版 v44** | <https://sgxdvx123321-svg.github.io/endless-territory/versions/territory-v44.html> |
 | 🗂 **版本畫廊（線上）** | <https://sgxdvx123321-svg.github.io/endless-territory/> |
-| 原始檔 | [`versions/territory-v38.html`](versions/territory-v38.html) |
+| 原始檔 | [`versions/territory-v44.html`](versions/territory-v44.html) |
 | 下載全部版本 | `git clone` 見下方 |
 
 > 線上版用 GitHub Pages 部署，手機瀏覽器也能開；想離線玩就直接下載單檔。
@@ -60,7 +60,7 @@
 ```bash
 git clone https://github.com/sgxdvx123321-svg/endless-territory.git
 cd endless-territory
-open versions/territory-v38.html   # macOS；Windows 直接雙擊
+open versions/territory-v44.html   # macOS；Windows 直接雙擊
 ```
 
 加了 `?seed=12345` 可以重現同一張世界；`?auto` 會跳過主選單直接開局（做截圖 / 測試用）。
@@ -89,7 +89,7 @@ open versions/territory-v38.html   # macOS；Windows 直接雙擊
 
 ## 版本一覽
 
-八個時期，37 個可玩快照。完整演進說明見 [`docs/VERSIONS.md`](docs/VERSIONS.md)，逐版細節見 [`docs/CHANGELOG.md`](docs/CHANGELOG.md)。
+九個時期，43 個可玩快照。完整演進說明見 [`docs/VERSIONS.md`](docs/VERSIONS.md)，逐版細節見 [`docs/CHANGELOG.md`](docs/CHANGELOG.md)。
 
 <details open>
 <summary><b>一 · 基礎期 v2 – v5</b>：地圖怎麼長出來</summary>
@@ -192,6 +192,20 @@ open versions/territory-v38.html   # macOS；Windows 直接雙擊
 
 </details>
 
+<details>
+<summary><b>九 · 磨合期 v39 – v44</b>：兵團、守備軍、卡死收尾</summary>
+
+| 版本 | 關鍵改動 |
+|---|---|
+| v39 | 兵團合併（每國 250 上限）、方向鎖修掉兵團抽搐 |
+| v40 | 出城的守備軍打完仗自己走回城 |
+| v41 | 守備軍可編入統合兵團、人數標籤分「守／野」、整隊跟緊主帥 |
+| v42 | 軍團不再橫衝直撞、主城圍困 30 秒判定、中英雙語 |
+| v43 | 野戰軍回城變數字、定期定位回收、敵方沒戰爭不派兵 |
+| v44 | 部隊不再互相卡死（側移／穿友軍／撤收）、集結令環形站位、主城標記多一欄「儲」 |
+
+</details>
+
 ---
 
 ## 專案結構
@@ -199,9 +213,9 @@ open versions/territory-v38.html   # macOS；Windows 直接雙擊
 ```
 endless-territory/
 ├─ index.html                版本畫廊（可當 GitHub Pages 首頁）
-├─ versions/                 37 個單檔快照 territory-v2 … v38.html
+├─ versions/                 43 個單檔快照 territory-v2 … v44.html
 ├─ docs/
-│  ├─ VERSIONS.md            八個時期的演進線（推薦先讀這個）
+│  ├─ VERSIONS.md            九個時期的演進線（推薦先讀這個）
 │  └─ CHANGELOG.md           逐版詳細記錄，含驗證數據
 ├─ screenshots/              遊戲截圖
 └─ LICENSE
@@ -219,7 +233,7 @@ endless-territory/
 <script> … 世界生成 → 實體 → update(dt) → render() → 輸入 / UI
 ```
 
-v38 裡最值得先看的幾個位置：
+v44 裡最值得先看的幾個位置：
 
 | 位置 | 內容 |
 |---|---|
@@ -251,5 +265,5 @@ v38 裡最值得先看的幾個位置：
 
 ## 致謝
 
-整個專案由 **AI 生成 + 人工調參** 完成：世界生成、AI、UI、平衡數值，以及 37 次「這版太強 / 這版會卡死」的重寫。
+整個專案由 **AI 生成 + 人工調參** 完成：世界生成、AI、UI、平衡數值，以及 43 次「這版太強 / 這版會卡死」的重寫。
 如果你把它改得更好玩了，歡迎開 PR 或 issue，讓我也玩一下。
