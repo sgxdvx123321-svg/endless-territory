@@ -4,6 +4,8 @@
 
 **一個單檔 HTML 的即時戰略遊戲 · 47 個版本全開源**
 
+**中文** · [English](README.en.md)
+
 [▶ 線上玩最新版](https://sgxdvx123321-svg.github.io/endless-territory/versions/territory-v48.html) · [🗂 版本畫廊](https://sgxdvx123321-svg.github.io/endless-territory/) · [MIT](LICENSE)
 
 </div>
